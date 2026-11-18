@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Trung Tâm Chạy Thử 6 Minigame - Leo Đỉnh Bàn Cờ</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Bungee&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <!-- CSS Minigame Chung -->
+    <link rel="stylesheet" href="minigames/minigames.css?v=32">
+    <style>
+        :root {
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.4);
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.85);
+            --border-glow: rgba(148, 163, 184, 0.25);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-green: #22c55e;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background: radial-gradient(circle at 50% 15%, #1e293b 0%, #0f172a 60%, #020617 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 1.2rem 1rem 3rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hub-container {
+            width: 100%;
+            max-width: 980px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        /* Header */
+        .hub-header {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .hub-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 1rem;
+            border-radius: 999px;
+            background: rgba(56, 189, 248, 0.15);
+            border: 1.5px solid var(--primary);
+            color: var(--primary);
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .hub-title {
+            font-family: 'Bungee', cursive, sans-serif;
+            font-size: 2.2rem;
+            line-height: 1.2;
+            background: linear-gradient(135deg, #ffffff 20%, #38bdf8 70%, #0284c7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 20px rgba(56, 189, 248, 0.4);
+        }
+
+        .hub-desc {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            line-height: 1.5;
+        }
+
+        /* Top Action Bar */
+        .hub-actions-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+            width: 100%;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.65rem 1.4rem;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            outline: none;
+            border: none;
+        }
+
+        .btn-main-game {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: #ffffff;
+            border: 2px solid #34d399;
+            box-shadow: 0 4px 15px rgba(5, 150, 105, 0.4);
+        }
+
+        .btn-main-game:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(5, 150, 105, 0.6);
+            filter: brightness(1.1);
+        }
+
+        .btn-play-all {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #ffffff;
+            border: 2px solid #fbbf24;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-play-all:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
+            filter: brightness(1.1);
+        }
+
+        /* Grid 6 Minigame Cards */
+        .minigames-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.2rem;
+            width: 100%;
+        }
+
+        .game-card {
+            background: var(--card-bg);
+            border: 1.5px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 1rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--card-color, var(--primary));
+            opacity: 0.8;
+        }
+
+        .game-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--card-color, var(--primary));
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 20px var(--card-glow, var(--primary-glow));
+        }
+
+        .card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-tag {
+            font-size: 0.72rem;
+            font-weight: 800;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.15);
+            color: var(--card-color, var(--primary));
+            border: 1px solid var(--card-color, var(--primary));
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-icon {
+            font-size: 2.2rem;
+            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+        }
+
+        .card-title {
+            font-family: 'Bungee', cursive, sans-serif;
+            font-size: 1.2rem;
+            color: #ffffff;
+            line-height: 1.3;
+        }
+
+        .card-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.45;
+        }
+
+        .card-desc strong {
+            color: var(--card-color, var(--primary));
+        }
+
+        .card-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            color: #64748b;
+            padding-top: 0.5rem;
+            border-top: 1px dashed rgba(148, 163, 184, 0.2);
+        }
+
+        .btn-launch {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            font-family: 'Bungee', cursive, sans-serif;
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            border: 2px solid var(--card-color, var(--primary));
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(2, 132, 199, 0.4));
+            color: #ffffff;
+            transition: all 0.15s ease;
+        }
+
+        .btn-launch:hover {
+            background: var(--card-color, var(--primary));
+            color: #0f172a;
+            box-shadow: 0 0 20px var(--card-glow, var(--primary-glow));
+            transform: scale(1.02);
+        }
+
+        .btn-launch:active {
+            transform: scale(0.98);
+        }
+
+        /* Dashboard Kết Quả Trực Quan */
+        .hub-log-section {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1.5px solid var(--border-glow);
+            border-radius: 16px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .log-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .log-title {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .btn-clear-log {
+            background: transparent;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-clear-log:hover {
+            color: #ffffff;
+            border-color: #ffffff;
+        }
+
+        .log-console {
+            background: #020617;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 10px;
+            padding: 0.8rem;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.72rem;
+            line-height: 1.7;
+            color: #4ade80;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .log-entry.err {
+            color: #f87171;
+        }
+
+        /* Footer */
+        .hub-footer {
+            font-size: 0.82rem;
+            color: #64748b;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .hub-footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .hub-title {
+                font-size: 1.6rem;
+            }
+            .minigames-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="hub-container">
+        <!-- Header -->
+        <header class="hub-header">
+            <div class="hub-badge">🎮 TEST ARENA • 6 MINI-GAMES</div>
+            <h1 class="hub-title">TRUNG TÂM CHẠY THỬ MINIGAME</h1>
+            <p class="hub-desc">
+                Trang thử nghiệm trực tiếp trọn bộ <strong>6 Mini-game</strong> của dự án <em>Leo Đỉnh Bàn Cờ</em>.
+                Bấm vào bất kỳ trò chơi nào bên dưới để trải nghiệm ngay lập tức!
+            </p>
+        </header>
+
+        <!-- Top Actions -->
+        <div class="hub-actions-bar">
+            <a href="index.html" class="btn-action btn-main-game">
+                🎲 VÀO BÀN CỜ CHÍNH (FULL GAME)
+            </a>
+            <button type="button" class="btn-action btn-play-all" id="btnPlayAll">
+                🔄 CHƠI THỬ TRỌN BỘ 6 GAME (VÒNG 1 ➔ 6)
+            </button>
+        </div>
+
+        <!-- 6 Minigame Cards -->
+        <div class="minigames-grid">
+            <!-- Game 1: Đua Sức Bền -->
+            <div class="game-card" style="--card-color: #ef4444; --card-glow: rgba(239, 68, 68, 0.4);">
+                <div class="card-top">
+                    <span class="card-tag">VÒNG 1, 7, 13...</span>
+                    <span class="card-icon">🔥</span>
+                </div>
+                <div>
+                    <h2 class="card-title">1. ĐUA SỨC BỀN</h2>
+                    <p class="card-desc">
+                        Trong <strong>8 giây</strong>, liên tục bấm vào <strong>nút tròn</strong> để nạp thanh thể lực!
+                        Điểm = <em>Số lần bấm × 10</em> + Phản xạ sớm (tối đa 50đ).
+                    </p>
+                </div>
+                <div class="card-meta">
+                    <span>⏱️ Thời gian: 8s</span>
+                    <span>🏆 Xếp hạng: Lần bấm & Phản xạ</span>
+                </div>
+                <button type="button" class="btn-launch" onclick="launchGame('game-1')">
+                    ▶️ CHẠY THỬ GAME 1
+                </button>
+            </div>
+
+            <!-- Game 2: Phản Xạ Né Khỉ -->
+            <div class="game-card" style="--card-color: #f59e0b; --card-glow: rgba(245, 158, 11, 0.4);">
+                <div class="card-top">
+                    <span class="card-tag">VÒNG 2, 8, 14...</span>
+                    <span class="card-icon">🐒</span>
+                </div>
+                <div>
+                    <h2 class="card-title">2. PHẢN XẠ NÉ KHỈ</h2>
+                    <p class="card-desc">
+                        Chú khỉ Sơn Trà nhắm ném quả thông (3 lượt)!
+                        Khi chữ <strong>"CHỘP!"</strong> hiện lên sau 2–5s ngẫu nhiên, bấm nút nhanh nhất có thể. Tối đa 100đ/lượt (tổng 300đ).
+                    </p>
+                </div>
+                <div class="card-meta">
+                    <span>⏱️ Số lượt: 3 lần</span>
+                    <span>🏆 Xếp hạng: Phản xạ mili-giây</span>
+                </div>
+                <button type="button" class="btn-launch" onclick="launchGame('game-2')">
+                    ▶️ CHẠY THỬ GAME 2
+                </button>
+            </div>
+
+            <!-- Game 3: Căn Lực Gió -->
+            <div class="game-card" style="--card-color: #10b981; --card-glow: rgba(16, 185, 129, 0.4);">
+                <div class="card-top">
+                    <span class="card-tag">VÒNG 3, 9, 15...</span>
+                    <span class="card-icon">🎯</span>
+                </div>
+                <div>
+                    <h2 class="card-title">3. CĂN LỰC GIÓ</h2>
+                    <p class="card-desc">
+                        Kim đỏ quét qua lại tốc độ cao. Dừng đúng vào <strong>tâm xanh lá (100 điểm)</strong>!
+                        Có <strong>3 lần bấm</strong>, mỗi lượt sau gió thổi nhanh hơn một tí!
+                    </p>
+                </div>
+                <div class="card-meta">
+                    <span>⏱️ Số lượt: 3 lần bấm</span>
+                    <span>🏆 Xếp hạng: Tổng điểm căn lực</span>
+                </div>
+                <button type="button" class="btn-launch" onclick="launchGame('game-3')">
+                    ▶️ CHẠY THỬ GAME 3
+                </button>
+            </div>
+
+            <!-- Game 4: Đếm Thời Gian Trong Sương Mù -->
+            <div class="game-card" style="--card-color: #38bdf8; --card-glow: rgba(56, 189, 248, 0.4);">
+                <div class="card-top">
+                    <span class="card-tag">VÒNG 4, 10, 16...</span>
+                    <span class="card-icon">🌫️</span>
+                </div>
+                <div>
+                    <h2 class="card-title">4. ĐẾM SƯƠNG MÙ</h2>
+                    <p class="card-desc">
+                        Mục tiêu: <strong>ngẫu nhiên 5.00s – 10.00s</strong>. Đến giây thứ <strong>2.00s</strong> sương mù phủ kín làm ẩn con số!
+                        Tự nhẩm đếm và bấm DỪNG khi nghĩ đã chạm đúng mốc mục tiêu.
+                    </p>
+                </div>
+                <div class="card-meta">
+                    <span>⏱️ Giới hạn: ≤ 15s</span>
+                    <span>🏆 Xếp hạng: Độ lệch nhỏ nhất</span>
+                </div>
+                <button type="button" class="btn-launch" onclick="launchGame('game-4')">
+                    ▶️ CHẠY THỬ GAME 4
+                </button>
+            </div>
+
+            <!-- Game 5: Săn Ảnh Voọc Chà Vá -->
+            <div class="game-card" style="--card-color: #a855f7; --card-glow: rgba(168, 85, 247, 0.4);">
+                <div class="card-top">
+                    <span class="card-tag">VÒNG 5, 11, 17...</span>
+                    <span class="card-icon">📸</span>
+                </div>
+                <div>
+                    <h2 class="card-title">5. SĂN ẢNH VOỌC</h2>
+                    <p class="card-desc">
+                        Trong <strong>15 giây</strong>, nhanh tay chụp <strong>Voọc (+20đ)</strong> thò ra từ 6 bụi cây!
+                        Càng về sau <em>tần suất càng dày</em> và <em>thời gian thò đầu càng ngắn (360ms)</em>! Tránh nhầm <strong>Khỉ (-15đ)</strong>!
+                    </p>
+                </div>
+                <div class="card-meta">
+                    <span>⏱️ Thời gian: 15s</span>
+                    <span>🏆 34 Lượt: 24 Voọc & 10 Khỉ</span>
+                </div>
+                <button type="button" class="btn-launch" onclick="launchGame('game-5')">
+                    ▶️ CHẠY THỬ GAME 5
+                </button>
+            </div>
+
+            <!-- Game 6: Giữ Thăng Bằng Đi Trên Dây -->
+            <div class="game-card" style="--card-color: #f97316; --card-glow: rgba(249, 115, 22, 0.4);">
+                <div class="card-top">
+                    <span class="card-tag">VÒNG 6, 12, 18...</span>
+                    <span class="card-icon">🧗</span>
+                </div>
+                <div>
+                    <h2 class="card-title">6. THĂNG BẰNG ĐI TRÊN DÂY</h2>
+                    <p class="card-desc">
+                        Góc nhìn từ sau lưng nhân vật đi trên dây cáp! Bão lốc và các mũi tên trắng bay cuốn liên hồi.
+                        Bấm <strong>Trái / Phải</strong> nhấp nhả ghìm thăng bằng trong <strong>vùng tâm thẳng đứng</strong>. Ai trụ lâu hơn sẽ chiến thắng!
+                    </p>
+                </div>
+                <div class="card-meta">
+                    <span>⏱️ Thử thách: Sinh tồn đi trên dây</span>
+                    <span>🏆 Xếp hạng: Thời gian trụ lâu nhất</span>
+                </div>
+                <button type="button" class="btn-launch" onclick="launchGame('game-6')">
+                    ▶️ CHẠY THỬ GAME 6
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard Kết Quả Console -->
+        <section class="hub-log-section">
+            <div class="log-header">
+                <div class="log-title">
+                    <span>📊 NHẬT KÝ KẾT QUẢ THỬ NGHIỆM</span>
+                </div>
+                <button type="button" class="btn-clear-log" onclick="clearLog()">XÓA NHẬT KÝ</button>
+            </div>
+            <div class="log-console" id="logConsole">
+                <div>[SYSTEM] Sẵn sàng kiểm thử 6 minigame. Hãy chọn một trò chơi phía trên...</div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="hub-footer">
+            Dự Án Bàn Cờ Điện Tử & AI: <strong>Leo Đỉnh Bàn Cờ</strong> • ESP32 & Web App Platform<br>
+            Hỗ trợ đa nền tảng: PC Browser, Mobile Touch, Wi-Fi AP Cục Bộ.
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="minigames/minigame-manager.js?v=35"></script>
+    <script>
+        // Đăng ký 6 Minigame vào MinigameManager
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.MinigameManager) {
+                MinigameManager.register('game-1', {
+                    title: 'ĐUA SỨC BỀN',
+                    description: 'Trong <strong>8 giây</strong>, liên tục bấm vào <strong>nút tròn</strong> trên màn hình để nạp đầy thanh thể lực!',
+                    script: 'minigames/game-1/game-1.js',
+                    style: 'minigames/game-1/game-1.css'
+                });
+                MinigameManager.register('game-2', {
+                    title: 'PHẢN XẠ NÉ KHỈ',
+                    description: 'Chú khỉ Sơn Trà đang nhắm ném quả thông! Khi chữ <strong>CHỘP!</strong> xuất hiện, hãy bấm nút thật nhanh để né quả thông (3 lượt ném)!',
+                    script: 'minigames/game-2/game-2.js',
+                    style: 'minigames/game-2/game-2.css'
+                });
+                MinigameManager.register('game-3', {
+                    title: 'CĂN LỰC GIÓ',
+                    description: 'Bấm dừng <strong>kim đỏ</strong> đúng vào <strong>tâm xanh lá (100 điểm)</strong>! Bạn có 3 lần bấm, lượt sau gió thổi nhanh hơn!',
+                    script: 'minigames/game-3/game-3.js',
+                    style: 'minigames/game-3/game-3.css'
+                });
+                MinigameManager.register('game-4', {
+                    title: 'ĐẾM THỜI GIAN TRONG SƯƠNG MÙ',
+                    description: 'Đồng hồ sẽ bị sương mù che khuất ở giây thứ 2. Hãy nhẩm đếm trong đầu và bấm <strong>DỪNG</strong> khi chạm đúng mốc mục tiêu (ngẫu nhiên 5 – 10 giây)!',
+                    script: 'minigames/game-4/game-4.js',
+                    style: 'minigames/game-4/game-4.css'
+                });
+                MinigameManager.register('game-5', {
+                    title: 'SĂN ẢNH VOỌC CHÀ VÁ',
+                    description: 'Trong 15 giây, nhanh tay chụp trúng <strong>Voọc chà vá (+20đ)</strong> thò ra từ các bụi cây! Tránh chụp nhầm <strong>Khỉ tinh nghịch (-15đ)</strong>!',
+                    script: 'minigames/game-5/game-5.js',
+                    style: 'minigames/game-5/game-5.css'
+                });
+                MinigameManager.register('game-6', {
+                    title: 'GIỮ THĂNG BẰNG ĐI TRÊN DÂY',
+                    description: 'Đi trên dây cáp nhìn từ sau lưng! Gió núi và các mũi tên trắng bay cuốn liên hồi. Bấm <strong>Trái / Phải</strong> nhấp nhả ghìm thăng bằng trong vùng tâm thẳng đứng. Ai trụ lâu hơn sẽ chiến thắng!',
+                    script: 'minigames/game-6/game-6.js',
+                    style: 'minigames/game-6/game-6.css'
+                });
+                appendLog('[SYSTEM] Đã khởi tạo thành công hệ thống MinigameManager (6 Mini-game).');
+            }
+        });
+
+        const logConsole = document.getElementById('logConsole');
+
+        function appendLog(text, isErr = false) {
+            if (!logConsole) return;
+            const timeStr = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = `log-entry ${isErr ? 'err' : ''}`;
+            div.innerHTML = `[${timeStr}] ${text}`;
+            logConsole.appendChild(div);
+            logConsole.scrollTop = logConsole.scrollHeight;
+        }
+
+        function clearLog() {
+            if (logConsole) {
+                logConsole.innerHTML = '<div>[SYSTEM] Đã xóa nhật ký.</div>';
+            }
+        }
+
+        // Khởi chạy 1 minigame cụ thể
+        async function launchGame(gameType) {
+            appendLog(`▶️ Bắt đầu khởi chạy <strong>${gameType.toUpperCase()}</strong>...`);
+            try {
+                const launchOpts = {
+                    player: { name: 'Người Thử Nghiệm', id: 'tester' }
+                };
+                if (gameType === 'game-4') {
+                    // Ngẫu nhiên mốc mục tiêu từ 5.00s đến 10.00s
+                    launchOpts.targetSec = 5 + Math.floor(Math.random() * 6);
+                }
+                const result = await MinigameManager.launch(gameType, launchOpts);
+                
+                let details = '';
+                if (result.survivalTime !== undefined) {
+                    details = `Trụ vững: ${result.survivalTime.toFixed(2)}s (${result.ratingText || ''})`;
+                } else if (result.fogStoppedTime !== undefined) {
+                    const tSec = result.targetTime !== undefined ? result.targetTime.toFixed(2) : '7.00';
+                    details = `Dừng lúc: ${result.fogStoppedTime.toFixed(2)}s (Mục tiêu: ${tSec}s • Lệch: ±${result.diffSec.toFixed(2)}s)`;
+                } else if (result.voocHits !== undefined) {
+                    details = `Voọc: ${result.voocHits}/${result.totalVooc} (+${result.voocHits * 20}đ) • Khỉ: ${result.khiHits}/${result.totalKhi} (-${result.khiHits * 15}đ)`;
+                } else if (result.attemptsCount !== undefined) {
+                    details = `Căn lực: ${result.perfectCount}/${result.attemptsCount} lần 100đ`;
+                } else if (result.throwsCount !== undefined) {
+                    details = `Né khỉ: Nhanh nhất ${result.bestReactionTime}ms`;
+                } else if (result.taps !== undefined) {
+                    details = `Bấm: ${result.taps} lần • Phản xạ: ${(result.firstTapTime / 1000).toFixed(2)}s`;
+                }
+
+                appendLog(`✅ <strong>[HOÀN THÀNH ${gameType.toUpperCase()}]</strong> Điểm: <strong>${result.score || 0}đ</strong> | ${details}`);
+            } catch (err) {
+                appendLog(`❌ Lỗi khi chạy ${gameType}: ${err.message || err}`, true);
+            }
+        }
+
+        // Chạy thử trọn bộ 6 game liên tiếp
+        document.getElementById('btnPlayAll').addEventListener('click', async () => {
+            const games = ['game-1', 'game-2', 'game-3', 'game-4', 'game-5', 'game-6'];
+            appendLog(`🔄 BẮT ĐẦU CHUỖI THỬ NGHIỆM TRỌN BỘ 6 MINI-GAME!`);
+            for (let i = 0; i < games.length; i++) {
+                const g = games[i];
+                appendLog(`👉 [VÒNG ${i + 1}/6]: Chạy ${g.toUpperCase()}...`);
+                try {
+                    const opts = {
+                        player: { name: 'Người Thử Nghiệm', id: 'tester' }
+                    };
+                    if (g === 'game-4') {
+                        opts.targetSec = 5 + Math.floor(Math.random() * 6);
+                    }
+                    await MinigameManager.launch(g, opts);
+                } catch (e) {
+                    appendLog(`Bỏ qua ${g}: ${e.message}`, true);
+                }
+            }
+            appendLog(`🎉 CHÚC MỪNG! Bạn đã hoàn thành trọn bộ 6 Mini-game!`);
+        });
+    </script>
+</body>
+
+</html>
+

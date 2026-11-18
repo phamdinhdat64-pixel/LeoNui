@@ -1,0 +1,395 @@
+/* ==========================================================================
+   MINI-GAME 6: GIỮ THĂNG BẰNG QUA CẦU TREO (BRIDGE BALANCE)
+   ========================================================================== */
+
+.game6-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 0.5rem 0.6rem 0.6rem;
+    box-sizing: border-box;
+    position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    font-family: 'Be Vietnam Pro', sans-serif;
+    color: #f8fafc;
+}
+
+/* Header: Thời Gian Trụ Vững & Chỉ Số Gió */
+.game6-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.game6-hud-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.game6-timer-pill {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1.5px solid #22c55e;
+    color: #f0fdf4;
+}
+
+.game6-timer-val {
+    font-family: 'Bungee', monospace;
+    font-size: 1.25rem;
+    color: #4ade80;
+    text-shadow: 0 0 10px rgba(74, 222, 128, 0.6);
+}
+
+.game6-wind-pill {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1.5px solid #38bdf8;
+    color: #e0f2fe;
+}
+
+.game6-wind-val {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Thanh Trạng Thái / Cảnh Báo Gió */
+.game6-wind-warning-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    width: 100%;
+    padding: 0.3rem 0.8rem;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.game6-wind-warning-bar.gust-left {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #fca5a5;
+}
+
+.game6-wind-warning-bar.gust-right {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: rgba(56, 189, 248, 0.5);
+    color: #7dd3fc;
+}
+
+/* Sân Khấu Cầu Treo Vực Sâu */
+.game6-stage {
+    position: relative;
+    width: 100%;
+    height: 240px;
+    border-radius: 18px;
+    background: radial-gradient(circle at 50% 30%, #1e293b 0%, #0f172a 70%, #020617 100%);
+    border: 2px solid rgba(148, 163, 184, 0.3);
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8), 0 8px 30px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 0.6rem;
+}
+
+/* Hiệu ứng mây trôi dưới vực sâu */
+.game6-clouds-abyss {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 90px;
+    background: linear-gradient(180deg, transparent 0%, rgba(148, 163, 184, 0.25) 60%, rgba(203, 213, 225, 0.45) 100%);
+    filter: blur(8px);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Hai Dây Cáp Cầu Treo Mắc Qua 2 Đầu Vực */
+.game6-cables {
+    position: absolute;
+    top: 35px;
+    left: 0;
+    right: 0;
+    height: 70px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.game6-cable-svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Vùng Tâm Màu Xanh An Toàn Ở Giữa */
+.game6-safe-zone-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 36%;
+    right: 36%;
+    background: rgba(34, 197, 94, 0.12);
+    border-left: 2px dashed rgba(74, 222, 128, 0.6);
+    border-right: 2px dashed rgba(74, 222, 128, 0.6);
+    pointer-events: none;
+    z-index: 2;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 6px;
+}
+
+.game6-safe-zone-label {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #4ade80;
+    text-transform: uppercase;
+    text-shadow: 0 0 6px rgba(34, 197, 94, 0.8);
+    background: rgba(15, 23, 42, 0.7);
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid rgba(74, 222, 128, 0.4);
+}
+
+/* Cụm Cầu Treo & Nhân Vật Bị Nghiêng */
+.game6-bridge-assembly {
+    position: relative;
+    width: 82%;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: 50% 85%;
+    transition: transform 0.05s linear;
+    z-index: 4;
+}
+
+/* Thanh Gỗ Cầu Treo Ngang */
+.game6-bridge-plank {
+    position: absolute;
+    bottom: 18px;
+    width: 100%;
+    height: 16px;
+    background: linear-gradient(180deg, #b45309 0%, #78350f 100%);
+    border: 2px solid #d97706;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), inset 0 2px 2px rgba(254, 243, 199, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Khắc vạch tâm xanh lá trên thanh gỗ */
+.game6-plank-green-center {
+    width: 32%;
+    height: 100%;
+    background: linear-gradient(180deg, rgba(34, 197, 94, 0.65) 0%, rgba(21, 128, 61, 0.75) 100%);
+    border-left: 2px solid #4ade80;
+    border-right: 2px solid #4ade80;
+    box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+}
+
+/* Nhân Vật Leo Núi Đang Giữ Thăng Bằng */
+.game6-character-container {
+    position: absolute;
+    bottom: 30px;
+    width: 58px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: 50% 100%;
+    transition: transform 0.04s linear;
+}
+
+.game6-char-avatar {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+}
+
+/* Hai Cánh Tay Cầm Gậy Cân Bằng */
+.game6-pole-bar {
+    position: absolute;
+    top: 36px;
+    width: 140px;
+    height: 4px;
+    background: linear-gradient(90deg, #ef4444 0%, #fbbf24 50%, #38bdf8 100%);
+    border-radius: 3px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    z-index: 5;
+}
+
+/* Kim Chỉ Báo Trọng Tâm */
+.game6-center-indicator {
+    position: absolute;
+    bottom: 2px;
+    width: 4px;
+    height: 12px;
+    background: #ef4444;
+    border-radius: 2px;
+    box-shadow: 0 0 8px #ef4444;
+}
+
+/* Màn Hình Kết Quả Ngã Cầu / Qua Cầu */
+.game6-result-card {
+    position: absolute;
+    inset: 12px;
+    z-index: 20;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
+    border: 2px solid #22c55e;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.75rem;
+    box-sizing: border-box;
+    opacity: 0;
+    transform: scale(0.85);
+    pointer-events: none;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.game6-result-card.visible {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+
+.game6-result-card.fail {
+    border-color: #ef4444;
+}
+
+.game6-res-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #94a3b8;
+}
+
+.game6-res-time {
+    font-family: 'Bungee', monospace;
+    font-size: 2.1rem;
+    font-weight: 700;
+    color: #4ade80;
+    text-shadow: 0 0 15px rgba(74, 222, 128, 0.7);
+}
+
+.game6-result-card.fail .game6-res-time {
+    color: #f87171;
+    text-shadow: 0 0 15px rgba(239, 68, 68, 0.7);
+}
+
+.game6-res-verdict {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fde047;
+    text-align: center;
+}
+
+/* 2 Nút Bấm Trái / Phải Cho Người Chơi */
+.game6-controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.game6-btn {
+    min-height: 64px;
+    border-radius: 14px;
+    font-family: 'Bungee', cursive, sans-serif;
+    font-size: 1.15rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), inset 0 2px 3px rgba(255, 255, 255, 0.25);
+    transition: transform 0.08s ease, filter 0.12s ease;
+    outline: none;
+    border: none;
+    color: #ffffff;
+}
+
+.game6-btn-left {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    border: 2px solid #38bdf8;
+    box-shadow: 0 6px 20px rgba(2, 132, 199, 0.4);
+}
+
+.game6-btn-right {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    border: 2px solid #34d399;
+    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4);
+}
+
+.game6-btn:hover {
+    filter: brightness(1.12);
+}
+
+.game6-btn:active, .game6-btn.pressed {
+    transform: scale(0.95) translateY(2px);
+    filter: brightness(0.9);
+}
+
+.game6-btn:disabled {
+    background: #475569;
+    border-color: #64748b;
+    color: #94a3b8;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+/* Hướng dẫn phím bấm */
+.game6-hint-text {
+    font-size: 0.76rem;
+    color: #94a3b8;
+    text-align: center;
+    margin-top: 0.35rem;
+}
+
+/* Responsive Cho Thiết Bị Di Động */
+@media (max-width: 480px) {
+    .game6-stage {
+        height: 215px;
+    }
+    .game6-btn {
+        min-height: 58px;
+        font-size: 1.05rem;
+    }
+    .game6-timer-val {
+        font-size: 1.1rem;
+    }
+}
+

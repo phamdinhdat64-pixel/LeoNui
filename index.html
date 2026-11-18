@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Leo Đỉnh Bàn Cờ - Peak Climber</title>
+    <link rel="stylesheet" href="style.css?v=32">
+    <link rel="stylesheet" href="minigames/minigames.css?v=32">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Bungee&family=Press+Start+2P&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="game-wrapper">
+        <!-- Top HUD -->
+        <header class="game-header">
+            <div class="hud-left">
+                <div class="brand">
+                    <span class="game-title">ĐÈO NÚI SƠN TRÀ</span>
+                    <span class="badge-tag">CHINH PHỤC ĐỈNH BÀN CỜ (50 Ô)</span>
+                </div>
+                <div class="round-badge">
+                    <span class="label">VÒNG</span>
+                    <span class="value" id="currentRoundDisplay">1</span>
+                </div>
+            </div>
+
+            <div class="hud-center">
+                <!-- Turn Queue Pills -->
+                <div class="turn-order-container" id="turnOrderList"
+                    title="Thứ tự lượt đi trong vòng này (được tráo ngẫu nhiên mỗi vòng)">
+                    <!-- Dynamic Turn Pills -->
+                </div>
+            </div>
+
+            <div class="hud-right">
+                <div id="roleBadge" class="role-badge" title="Vai trò hiện tại của thiết bị này trong phòng">
+                    <span id="roleIcon">👑</span>
+                    <span id="roleBadgeText">HOST</span>
+                </div>
+                <button id="btnSettings" class="btn-icon" title="Cài đặt phòng & IP Host" aria-label="Settings">
+                    <span class="icon">⚙️</span>
+                </button>
+                <button id="btnSound" class="btn-icon" title="Bật/Tắt Âm thanh (M)" aria-label="Toggle Sound">
+                    <span class="icon" id="soundIcon">🔊</span>
+                </button>
+                <button id="btnRules" class="btn-icon" title="Luật chơi" aria-label="Rules">
+                    <span class="icon">📜</span>
+                </button>
+                <button id="btnRestart" class="btn-icon" title="Ván mới" aria-label="Restart">
+                    <span class="icon">🔄</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Layout: Board + Control Sidebar -->
+        <main class="game-layout">
+            <!-- Left/Center: Canvas Board + SVG Paths Layer -->
+            <div class="board-container" id="boardContainer">
+                <!-- Camera Overlay Controls (Zoom Theo Dõi Siêu Lớn / Toàn Cảnh) -->
+                <div class="board-camera-controls">
+                    <div class="board-tier-badge" id="boardTierBadge">
+                        <span class="tier-badge-icon">🎯</span>
+                        <span id="boardTierBadgeText">THEO DÕI: NGƯỜI CHƠI 1 (Ô 0)</span>
+                    </div>
+                    <div class="board-camera-actions">
+                        <button type="button" class="btn-camera-zoom-step" id="btnCameraZoomOut" title="Thu nhỏ bớt zoom (−)">−</button>
+                        <button type="button" class="btn-toggle-camera" id="btnToggleCamera" title="Chuyển đổi góc nhìn (Bấm để đổi nhanh các mức Zoom)">
+                            <span id="btnToggleCameraIcon">🔍</span>
+                            <span id="btnToggleCameraText">ZOOM 3.8x</span>
+                        </button>
+                        <button type="button" class="btn-camera-zoom-step" id="btnCameraZoomIn" title="Phóng to lớn hơn nữa (+)">+</button>
+                    </div>
+                </div>
+
+                <!-- Camera Moving Wrapper: Chứa Canvas bàn cờ & Lớp nối đường SVG -->
+                <div class="board-camera-wrapper" id="boardCameraWrapper">
+                    <canvas id="boardCanvas" width="900" height="600"></canvas>
+                    <svg id="specialPathsSvg" class="special-paths-svg" viewBox="0 0 900 600" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <filter id="pathBlurGreen" filterUnits="userSpaceOnUse" x="0" y="0" width="900" height="600">
+                                <feGaussianBlur stdDeviation="1.5" />
+                            </filter>
+                            <filter id="pathBlurRed" filterUnits="userSpaceOnUse" x="0" y="0" width="900" height="600">
+                                <feGaussianBlur stdDeviation="1.5" />
+                            </filter>
+                            <marker id="arrowGreen" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 1 L 10 5 L 0 9 z" fill="rgba(134, 239, 172, 0.9)" />
+                            </marker>
+                            <marker id="arrowRed" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 1 L 10 5 L 0 9 z" fill="rgba(248, 113, 113, 0.9)" />
+                            </marker>
+                        </defs>
+                        <g id="svgPathsGroup"></g>
+                    </svg>
+                </div>
+
+                <!-- Notice Banner (Thông báo lối tắt / trượt dốc / ván mới) -->
+                <div id="gameBanner" class="game-banner hidden">
+                    <span id="bannerText">BẮT ĐẦU VÒNG 1</span>
+                </div>
+            </div>
+
+            <!-- Right/Bottom: Player Dashboard & Controls -->
+            <aside class="control-panel">
+                <!-- Active Turn Card -->
+                <div class="active-player-card" id="activePlayerCard">
+                    <div class="player-header">
+                        <span class="turn-status-label" id="turnStatusLabel">LƯỢT ĐI HIỆN TẠI</span>
+                        <div class="player-identity">
+                            <div class="player-avatar-circle" id="activePlayerAvatar"></div>
+                            <span class="player-name" id="activePlayerName">Người chơi 1</span>
+                        </div>
+                    </div>
+
+                    <div class="player-stats-row">
+                        <div class="stat-item">
+                            <span class="stat-title">Vị trí</span>
+                            <span class="stat-number" id="activePlayerPos">0 / 50</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-title">Mục tiêu</span>
+                            <span class="stat-number highlight" id="activePlayerNextMilestone">Đỉnh 50 👑</span>
+                        </div>
+                    </div>
+
+                    <!-- Dice Interactive Box (Nút tung xúc xắc) -->
+                    <div class="dice-box">
+                        <button id="btnRollDice" class="btn-roll">
+                            <span class="roll-icon">🎲</span>
+                            <span class="roll-text">TUNG XÚC XẮC</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Leaderboard / Progress of all players -->
+                <div class="players-list-panel">
+                    <h3 class="panel-subtitle">TIẾN ĐỘ NGƯỜI CHƠI</h3>
+                    <div class="player-progress-list" id="playerProgressList">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Event History Log -->
+                <div class="event-log-panel">
+                    <h3 class="panel-subtitle">NHẬT KÝ VÁN ĐẤU</h3>
+                    <div class="log-content" id="logContent">
+                        <div class="log-entry">Chào mừng bạn đến với Leo Đỉnh Bàn Cờ!</div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- ==========================================================================
+             MODALS & OVERLAYS
+             ========================================================================== -->
+
+        <!-- 1. Lobby / Game Setup Modal -->
+        <div id="setupModal" class="modal-overlay active">
+            <div class="modal-card">
+                <div class="lobby-badge" id="lobbyRoleBadge">👑 PHÒNG HOST · QUAN SÁT & ĐIỀU HÀNH</div>
+                <h1 class="modal-title">LEO ĐỈNH BÀN CỜ</h1>
+                <p class="modal-desc" id="lobbyModalDesc">Đua tiến độ 50 ô, vượt mốc trắc nghiệm trí tuệ và chinh phục đỉnh cao!</p>
+
+                <!-- HOST VIEW: Cài đặt và điều hành ván đấu -->
+                <div id="hostSetupView">
+                    <div class="setup-section">
+                        <label class="section-label">Số lượng người chơi:</label>
+                        <div class="player-count-buttons" id="playerCountGroup">
+                            <button class="btn-select active" data-count="2">2 Người</button>
+                            <button class="btn-select" data-count="3">3 Người</button>
+                            <button class="btn-select" data-count="4">4 Người</button>
+                            <button class="btn-select" data-count="5">5 Người</button>
+                            <button class="btn-select" data-count="6">6 Người</button>
+                        </div>
+                    </div>
+
+                    <div class="setup-section">
+                        <label class="section-label">Danh sách đối thủ & thiết bị:</label>
+                        <div class="player-inputs" id="playerInputsContainer">
+                            <!-- Generated by JS -->
+                        </div>
+                    </div>
+
+                    <button id="btnStartGame" class="btn-primary-action">BẮT ĐẦU VÁN ĐẤU</button>
+                </div>
+
+                <!-- PLAYER (GUEST) VIEW: Màn hình chờ của người chơi -->
+                <div id="playerWaitingView" class="hidden">
+                    <div class="player-waiting-card">
+                        <div class="player-slot-info">
+                            <span class="label">BẠN ĐANG Ở VỊ TRÍ:</span>
+                            <div class="player-identity-pill" id="myIdentityPill">
+                                <div class="player-avatar-circle" id="myPlayerAvatar"></div>
+                                <span class="player-name" id="myPlayerSlotName">Đang nhận vị trí...</span>
+                            </div>
+                        </div>
+                        <div class="name-edit-box">
+                            <label for="inputMyCustomName" class="section-label">Tên hiển thị của bạn:</label>
+                            <div class="name-input-group">
+                                <input type="text" id="inputMyCustomName" maxlength="20" placeholder="Nhập tên của bạn...">
+                                <button type="button" id="btnSaveMyName" class="btn-secondary-action">Đổi tên</button>
+                            </div>
+                        </div>
+                        <div class="guest-char-section">
+                            <label class="section-label">CHỌN TƯỚNG / BIỂU TƯỢNG QUÂN CỜ CỦA BẠN:</label>
+                            <div class="character-grid" id="guestCharacterGrid"></div>
+                        </div>
+                        <div class="waiting-indicator">
+                            <span class="spinner">⏳</span>
+                            <span id="playerWaitingText">Đã vào phòng! Đang chờ Host bắt đầu ván đấu...</span>
+                        </div>
+                        <div class="lobby-players-summary">
+                            <label class="section-label">Người chơi trong phòng:</label>
+                            <div id="lobbyPlayersList" class="lobby-players-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Victory / Game Over Modal -->
+        <div id="victoryModal" class="modal-overlay hidden">
+            <div class="modal-card victory-card">
+                <!-- Visual Illustration: ĐỈNH BÀN CỜ SƠN TRÀ THỰC TẾ -->
+                <div class="summit-illustration">
+                    <img src="image_2.png" alt="Đỉnh Bàn Cờ - Sơn Trà" class="summit-photo" id="victorySummitImg" onerror="if(this.src.indexOf('.jpg')===-1)this.src='image_2.png.jpg'">
+                </div>
+
+                <div class="trophy-badge">🏆 CHIẾN THẮNG ĐỈNH BÀN CỜ 🏆</div>
+                <h1 class="victory-title">ĐẮC ĐẠO TIÊN ÔNG</h1>
+                <p class="victory-subtitle" id="winnerSubtitle">Người chơi đã xuất sắc vượt qua các dốc đá hiểm trở và chinh phục Đỉnh Bàn Cờ 50 đầu tiên!</p>
+
+                <div class="victory-stats" id="victoryStatsContainer">
+                    <div>Vòng đấu hoàn thành: <strong>14</strong></div>
+                    <div>Tổng số lần đổ xúc xắc: <strong>14</strong></div>
+                    <div>Vị trí chung cuộc: <strong>50 / 50</strong></div>
+                </div>
+
+                <button id="btnPlayAgain" class="btn-primary-action">CHINH PHỤC VÁN MỚI</button>
+            </div>
+        </div>
+
+        <!-- 3. Rules Guide Modal -->
+        <div id="rulesModal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <h2 class="modal-title">LUẬT CHƠI ĐÈO SƠN TRÀ</h2>
+                <div class="rules-body">
+                    <div class="rule-item">
+                        <strong>🎯 Mục tiêu:</strong> Ai di chuyển đến vị trí <strong>≥ 50</strong> (Đỉnh Bàn Cờ) đầu tiên sẽ chiến
+                        thắng ngay lập tức!
+                    </div>
+                    <div class="rule-item">
+                        <strong>🎮 Thứ tự Lượt & Minigame:</strong> Sau mỗi lượt tung xúc xắc, người chơi sẽ tham gia
+                        <strong>Mini-game tính điểm</strong>. Sau khi hoàn thành một vòng, hệ thống sẽ tự động xếp lại thứ tự tung xúc xắc cho vòng tiếp theo <strong>từ người có điểm cao nhất đến thấp nhất</strong>!
+                    </div>
+                    <div class="rule-item">
+                        <strong style="color: #22c55e;">🚀 Lối Tắt Leo Núi (Ô có mũi tên ⬆):</strong>
+                        Khi kết thúc lượt tung xúc xắc và <strong>dừng lại đúng tại ô có mũi tên ⬆ (ô 17 hoặc 37)</strong>, bạn sẽ được tự động bay thẳng lên tầng trên:
+                        <ul>
+                            <li><strong>Dừng ô 17 (⬆):</strong> Tự động tiến thẳng lên <strong>ô 24</strong>!</li>
+                            <li><strong>Dừng ô 37 (⬆):</strong> Tự động tiến thẳng lên <strong>ô 42</strong>!</li>
+                        </ul>
+                    </div>
+                    <div class="rule-item">
+                        <strong style="color: #ef4444;">⚠️ Trượt Chân Dốc Đá (Ô có mũi tên ⬇):</strong>
+                        Khi kết thúc lượt tung xúc xắc và <strong>dừng lại đúng tại ô có mũi tên ⬇ (ô 29 hoặc 47)</strong>, bạn sẽ bị trượt chân tụt lùi xuống tầng dưới:
+                        <ul>
+                            <li><strong>Dừng ô 29 (⬇):</strong> Bị trượt tụt xuống <strong>ô 11</strong>!</li>
+                            <li><strong>Dừng ô 47 (⬇):</strong> Bị trượt tụt xuống <strong>ô 32</strong>!</li>
+                            <li><em>Lưu ý: Nếu chỉ đi ngang qua các ô này thì sẽ không bị kích hoạt đường nối!</em></li>
+                        </ul>
+                    </div>
+                    <div class="rule-item">
+                        <strong>📡 Mạng Chơi ESP32:</strong> Thiết bị đầu tiên bấm tham gia là <strong>Host (Quan sát & Điều hành)</strong>. Các thiết bị kết nối sau là <strong>Người chơi</strong>!
+                    </div>
+                </div>
+                <button id="btnCloseRules" class="btn-secondary-action">ĐÃ HIỂU</button>
+            </div>
+        </div>
+
+        <!-- 4. Round Minigame Leaderboard Modal (Bảng Tổng Kết & Xếp Hạng Thứ Tự Lượt Mới) -->
+        <div id="roundLeaderboardModal" class="modal-overlay hidden" aria-modal="true" role="dialog">
+            <div class="modal-card leaderboard-card">
+                <div class="lobby-badge" id="leaderboardBadge">🏆 KẾT QUẢ ĐUA ĐIỂM MINIGAME</div>
+                <h2 class="modal-title" id="leaderboardTitle">THỨ TỰ TUNG XÚC XẮC MỚI</h2>
+                <p class="modal-desc" id="leaderboardDesc">Thứ tự tung xúc xắc vòng tiếp theo được xếp từ người có điểm Minigame cao nhất đến thấp nhất!</p>
+                <div class="leaderboard-ranking-list" id="leaderboardRankingList">
+                    <!-- Populated by JS -->
+                </div>
+                <button type="button" id="btnContinueRound" class="btn-primary-action">BẮT ĐẦU VÒNG TIẾP THEO 🎲</button>
+            </div>
+        </div>
+
+        <!-- 5. Settings & Host Transfer Modal -->
+        <div id="settingsModal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <h2 class="modal-title">CÀI ĐẶT MẠNG & PHÒNG</h2>
+                <div class="settings-body">
+                    <div class="settings-item">
+                        <span class="settings-label">Mạng Wi-Fi:</span>
+                        <strong class="settings-val">BOARD GAME (192.168.4.1)</strong>
+                    </div>
+                    <div class="settings-item">
+                        <span class="settings-label">Vai trò thiết bị này:</span>
+                        <strong id="settingsRoleText" class="settings-val highlight">Host</strong>
+                    </div>
+                    <div id="hostIpBox" class="settings-item">
+                        <span class="settings-label">IP điện thoại Host:</span>
+                        <strong id="settingsHostIp" class="settings-val" style="color:var(--color-gold);">192.168.4.2</strong>
+                        <p class="muted-small">Đọc IP này cho người khác nếu muốn chuyển quyền Host cho họ.</p>
+                    </div>
+                    <div id="claimHostBox" class="settings-item hidden">
+                        <label for="inputClaimIp" class="section-label">Nhập IP Host hiện tại để nhận quyền Host:</label>
+                        <div class="claim-input-group">
+                            <input type="text" id="inputClaimIp" placeholder="192.168.4.x" maxlength="15">
+                            <button type="button" id="btnClaimHost" class="btn-primary-action">Nhận Host</button>
+                        </div>
+                    </div>
+                </div>
+                <button id="btnCloseSettings" class="btn-secondary-action">ĐÓNG</button>
+            </div>
+        </div>
+
+        <!-- 6. Big 3D Dice Roll Overlay (Xúc Xắc Truyền Thống Việt Nam 120x120px) -->
+        <div id="diceOverlay" class="dice-overlay hidden" aria-modal="true" role="dialog">
+            <div class="dice-overlay-backdrop"></div>
+            <div class="dice-modal-wrapper">
+                <div class="dice-player-pill" id="dicePlayerPill">
+                    <span class="dice-player-dot" id="dicePlayerDot"></span>
+                    <span class="dice-player-name" id="dicePlayerName">Người chơi 1</span>
+                </div>
+                <div class="dice-action-title" id="diceActionTitle">Đang tung xúc xắc...</div>
+
+                <div class="dice-scene" id="diceScene">
+                    <div class="dice-bouncer" id="diceBouncer">
+                        <div class="cube" id="diceCube">
+                            <!-- Mặt 1: Front (Nhất - 1 chấm đỏ đại tâm) -->
+                            <div class="face face-1">
+                                <div class="pip-cell"></div><div class="pip-cell"></div><div class="pip-cell"></div>
+                                <div class="pip-cell"></div><div class="pip-cell"><div class="pip-dot pip-large-1"></div></div><div class="pip-cell"></div>
+                                <div class="pip-cell"></div><div class="pip-cell"></div><div class="pip-cell"></div>
+                            </div>
+
+                            <!-- Mặt 2: Right (Nhị - 2 chấm chéo) -->
+                            <div class="face face-2">
+                                <div class="pip-cell"><div class="pip-dot"></div></div><div class="pip-cell"></div><div class="pip-cell"></div>
+                                <div class="pip-cell"></div><div class="pip-cell"></div><div class="pip-cell"></div>
+                                <div class="pip-cell"></div><div class="pip-cell"></div><div class="pip-cell"><div class="pip-dot"></div></div>
+                            </div>
+
+                            <!-- Mặt 3: Bottom (Tam - 3 chấm đường chéo) -->
+                            <div class="face face-3">
+                                <div class="pip-cell"><div class="pip-dot"></div></div><div class="pip-cell"></div><div class="pip-cell"></div>
+                                <div class="pip-cell"></div><div class="pip-cell"><div class="pip-dot"></div></div><div class="pip-cell"></div>
+                                <div class="pip-cell"></div><div class="pip-cell"></div><div class="pip-cell"><div class="pip-dot"></div></div>
+                            </div>
+
+                            <!-- Mặt 4: Top (Tứ - 4 chấm đỏ to truyền thống) -->
+                            <div class="face face-4">
+                                <div class="pip-cell"><div class="pip-dot pip-large-4"></div></div><div class="pip-cell"></div><div class="pip-cell"><div class="pip-dot pip-large-4"></div></div>
+                                <div class="pip-cell"></div><div class="pip-cell"></div><div class="pip-cell"></div>
+                                <div class="pip-cell"><div class="pip-dot pip-large-4"></div></div><div class="pip-cell"></div><div class="pip-cell"><div class="pip-dot pip-large-4"></div></div>
+                            </div>
+
+                            <!-- Mặt 5: Left (Ngũ - 4 góc + 1 chấm giữa) -->
+                            <div class="face face-5">
+                                <div class="pip-cell"><div class="pip-dot"></div></div><div class="pip-cell"></div><div class="pip-cell"><div class="pip-dot"></div></div>
+                                <div class="pip-cell"></div><div class="pip-cell"><div class="pip-dot"></div></div><div class="pip-cell"></div>
+                                <div class="pip-cell"><div class="pip-dot"></div></div><div class="pip-cell"></div><div class="pip-cell"><div class="pip-dot"></div></div>
+                            </div>
+
+                            <!-- Mặt 6: Back (Lục - 2 cột 3 hàng) -->
+                            <div class="face face-6">
+                                <div class="pip-cell"><div class="pip-dot"></div></div><div class="pip-cell"></div><div class="pip-cell"><div class="pip-dot"></div></div>
+                                <div class="pip-cell"><div class="pip-dot"></div></div><div class="pip-cell"></div><div class="pip-cell"><div class="pip-dot"></div></div>
+                                <div class="pip-cell"><div class="pip-dot"></div></div><div class="pip-cell"></div><div class="pip-cell"><div class="pip-dot"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dice-ground-shadow" id="diceGroundShadow"></div>
+                </div>
+
+                <div class="dice-outcome-badge hidden" id="diceOutcomeBadge">
+                    <span id="diceOutcomeText">+4 BƯỚC</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. Character Selection Modal (Dành cho Host hoặc đổi nhân vật) -->
+        <div id="characterSelectModal" class="modal-overlay hidden" aria-modal="true" role="dialog">
+            <div class="modal-card character-modal-card">
+                <div class="lobby-badge">⚔️ CHỌN TƯỚNG / BIỂU TƯỢNG QUÂN CỜ</div>
+                <h2 class="modal-title" id="characterSelectTitle">CHỌN NHÂN VẬT</h2>
+                <p class="modal-desc">Chọn 1 trong 6 nhân vật đại diện cho quân cờ của bạn:</p>
+                <div class="character-grid" id="modalCharacterGrid">
+                    <!-- Populated dynamically by JS -->
+                </div>
+                <button type="button" id="btnCloseCharacterModal" class="btn-secondary-action">ĐÓNG</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="minigames/minigame-manager.js?v=35"></script>
+    <script src="script.js?v=35"></script>
+</body>
+
+</html>

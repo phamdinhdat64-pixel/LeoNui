@@ -1,0 +1,479 @@
+/* ==========================================================================
+   MINI-GAME 2: PHẢN XẠ NÉ KHỈ (MONKEY DODGE REFLEX)
+   ========================================================================== */
+
+.game2-wrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.2rem 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+}
+
+/* ==========================================================================
+   Top Header Bar: Round & Total Score
+   ========================================================================== */
+.game2-header-bar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.game2-round-pill,
+.game2-score-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    font-size: 0.8rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.game2-round-pill {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+}
+
+.game2-round-pill .pill-value {
+    color: #38bdf8;
+    font-family: 'Bungee', sans-serif;
+    font-size: 0.95rem;
+}
+
+.game2-score-pill {
+    border-color: #ffd166;
+    background: rgba(255, 209, 102, 0.12);
+}
+
+.game2-score-pill .pill-value {
+    color: #ffd166;
+    font-family: 'Bungee', sans-serif;
+    font-size: 1.05rem;
+}
+
+.game2-score-pill .pill-max {
+    color: #94a3b8;
+    font-size: 0.75rem;
+}
+
+/* ==========================================================================
+   3 Throws Tracker Badges
+   ========================================================================== */
+.game2-throws-tracker {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.45rem;
+}
+
+.throw-dot {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    padding: 0.35rem 0.2rem;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    font-size: 0.75rem;
+    transition: all 0.25s ease;
+}
+
+.throw-dot.active {
+    border-color: #ffd166;
+    background: rgba(255, 209, 102, 0.16);
+    box-shadow: 0 0 12px rgba(255, 209, 102, 0.3);
+    transform: translateY(-1px);
+}
+
+.throw-dot .dot-num {
+    font-weight: 750;
+    color: #cbd5e1;
+    font-size: 0.72rem;
+}
+
+.throw-dot .dot-res {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.throw-dot .dot-res.success {
+    color: #4ade80;
+    text-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+}
+
+.throw-dot .dot-res.fault {
+    color: #f87171;
+    text-shadow: 0 0 6px rgba(248, 113, 113, 0.4);
+}
+
+/* ==========================================================================
+   Main Forest Stage / Arena
+   ========================================================================== */
+.game2-stage {
+    width: 100%;
+    height: 190px;
+    background: radial-gradient(circle at 50% 30%, #064e3b 0%, #022c22 65%, #051410 100%);
+    border: 2px solid rgba(16, 185, 129, 0.35);
+    border-radius: 18px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.7), 0 8px 24px rgba(0, 0, 0, 0.4);
+    transition: all 0.25s ease;
+}
+
+.game2-stage.waiting {
+    border-color: rgba(16, 185, 129, 0.4);
+}
+
+.game2-stage.signal-active {
+    background: radial-gradient(circle at 50% 30%, #7f1d1d 0%, #450a0a 65%, #180303 100%);
+    border-color: #ef4444;
+    box-shadow: inset 0 0 25px rgba(239, 68, 68, 0.5), 0 0 25px rgba(239, 68, 68, 0.4);
+}
+
+.game2-stage.dodged {
+    background: radial-gradient(circle at 50% 30%, #065f46 0%, #064e3b 65%, #022c22 100%);
+    border-color: #34d399;
+    box-shadow: inset 0 0 20px rgba(52, 211, 153, 0.4);
+}
+
+.game2-stage.early-fault {
+    background: radial-gradient(circle at 50% 30%, #78350f 0%, #451a03 65%, #1c0a00 100%);
+    border-color: #f59e0b;
+    box-shadow: inset 0 0 20px rgba(245, 158, 11, 0.4);
+}
+
+.game2-stage.hit {
+    background: radial-gradient(circle at 50% 30%, #881337 0%, #4c0519 65%, #1f020a 100%);
+    border-color: #f43f5e;
+}
+
+/* Tree Foliage & Branch Decoration */
+.game2-tree-foliage {
+    position: absolute;
+    top: -25px;
+    right: -25px;
+    width: 140px;
+    height: 100px;
+    background: radial-gradient(circle, #059669 0%, #047857 70%, transparent 100%);
+    border-radius: 50%;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.game2-branch {
+    position: absolute;
+    top: 55px;
+    right: 0;
+    width: 110px;
+    height: 12px;
+    background: linear-gradient(90deg, #78350f 0%, #92400e 100%);
+    border-radius: 6px 0 0 6px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+
+/* Monkey Character */
+.game2-monkey-character {
+    position: absolute;
+    top: 15px;
+    right: 25px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 5;
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.game2-monkey-character.aiming {
+    animation: monkeyAim 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes monkeyAim {
+    0% { transform: translateY(0) rotate(0deg); }
+    100% { transform: translateY(-4px) rotate(-3deg); }
+}
+
+.game2-monkey-character.throwing {
+    animation: monkeyThrow 0.25s ease-out forwards;
+}
+
+@keyframes monkeyThrow {
+    0% { transform: scale(1) rotate(-5deg); }
+    50% { transform: scale(1.15) rotate(15deg) translateY(-8px); }
+    100% { transform: scale(1) rotate(0deg); }
+}
+
+.monkey-body {
+    position: relative;
+    z-index: 2;
+}
+
+.monkey-avatar {
+    font-size: 3.2rem;
+    line-height: 1;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+    display: block;
+}
+
+.monkey-arm {
+    position: absolute;
+    bottom: 2px;
+    left: -12px;
+    z-index: 3;
+}
+
+.pinecone-item {
+    font-size: 1.8rem;
+    line-height: 1;
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.6));
+    transition: transform 0.15s ease-out;
+}
+
+.pinecone-item.thrown {
+    animation: pineconeFly 0.5s cubic-bezier(0.1, 0.7, 0.1, 1) forwards;
+}
+
+@keyframes pineconeFly {
+    0% {
+        transform: translate(0, 0) scale(1) rotate(0deg);
+        opacity: 1;
+    }
+    60% {
+        transform: translate(-120px, 45px) scale(2.2) rotate(360deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-200px, 80px) scale(3.5) rotate(720deg);
+        opacity: 0.9;
+    }
+}
+
+.pinecone-item.dodged {
+    animation: pineconeMiss 0.4s ease-out forwards;
+}
+
+@keyframes pineconeMiss {
+    0% {
+        transform: translate(-120px, 45px) scale(2);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-280px, -40px) scale(1.2) rotate(540deg);
+        opacity: 0;
+    }
+}
+
+/* ==========================================================================
+   Signal Banner ("CHỘP!" Banner)
+   ========================================================================== */
+.game2-signal-banner {
+    position: absolute;
+    top: 50%;
+    left: 45%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+    border: 3.5px solid #ffd166;
+    border-radius: 18px;
+    padding: 0.5rem 1.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    box-shadow: 0 0 35px rgba(239, 68, 68, 0.8), 0 0 15px rgba(255, 209, 102, 0.8);
+    z-index: 10;
+}
+
+.game2-signal-banner.hidden {
+    display: none !important;
+}
+
+.game2-signal-banner.pulse-anim {
+    animation: signalPop 0.2s cubic-bezier(0.18, 1.2, 0.3, 1) forwards;
+}
+
+@keyframes signalPop {
+    0% {
+        transform: translate(-50%, -50%) scale(0.4);
+        opacity: 0;
+    }
+    60% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1.05);
+        opacity: 1;
+    }
+}
+
+.signal-text {
+    font-family: 'Bungee', cursive, sans-serif;
+    font-size: 2.1rem;
+    color: #ffffff;
+    letter-spacing: 2px;
+    text-shadow: 0 3px 6px rgba(0, 0, 0, 0.9), 0 0 15px #ffd166;
+    line-height: 1;
+}
+
+.signal-sparkle {
+    font-size: 1.4rem;
+    color: #ffd166;
+    animation: sparkleSpin 0.6s linear infinite;
+}
+
+@keyframes sparkleSpin {
+    0% { transform: scale(0.9) rotate(0deg); }
+    50% { transform: scale(1.3) rotate(180deg); }
+    100% { transform: scale(0.9) rotate(360deg); }
+}
+
+/* Feedback Status Overlay */
+.game2-status-badge {
+    position: absolute;
+    bottom: 10px;
+    left: 12px;
+    right: 12px;
+    padding: 0.35rem 0.8rem;
+    background: rgba(3, 12, 22, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: #f1f5f9;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    z-index: 6;
+    text-align: center;
+}
+
+/* ==========================================================================
+   Action Button Area
+   ========================================================================== */
+.game2-action-area {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.game2-dodge-btn {
+    width: 100%;
+    padding: 0.95rem 1.4rem;
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 60%, #0369a1 100%);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 14px;
+    color: #ffffff;
+    font-family: 'Bungee', cursive, sans-serif;
+    font-size: 1.15rem;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(2, 132, 199, 0.45);
+    transition: all 0.12s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    outline: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.game2-dodge-btn:hover {
+    background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(14, 165, 233, 0.6);
+}
+
+.game2-dodge-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);
+}
+
+.game2-dodge-btn.active-signal {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    border-color: #ffd166;
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.8);
+    animation: btnAlertPulse 0.4s infinite alternate;
+}
+
+@keyframes btnAlertPulse {
+    from { transform: scale(1); box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+    to { transform: scale(1.02); box-shadow: 0 0 30px rgba(239, 68, 68, 0.9); }
+}
+
+.game2-dodge-btn.early-fault {
+    background: #64748b;
+    border-color: #475569;
+    opacity: 0.6;
+}
+
+.game2-dodge-btn:disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.btn-dodge-icon {
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.game2-helper-hint {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 0.72rem;
+    text-align: center;
+}
+
+/* ==========================================================================
+   Responsive Mobile Adjustments
+   ========================================================================== */
+@media (max-width: 480px) {
+    .game2-stage {
+        height: 165px;
+    }
+
+    .monkey-avatar {
+        font-size: 2.7rem;
+    }
+
+    .signal-text {
+        font-size: 1.7rem;
+    }
+
+    .game2-signal-banner {
+        padding: 0.4rem 1rem;
+        left: 42%;
+    }
+
+    .game2-dodge-btn {
+        padding: 0.85rem 1rem;
+        font-size: 1rem;
+    }
+
+    .game2-status-badge {
+        font-size: 0.72rem;
+        padding: 0.3rem 0.5rem;
+    }
+}
+

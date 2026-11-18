@@ -1,0 +1,191 @@
+/* ==========================================================================
+   MINIGAME MANAGER — STYLES & MODAL OVERLAY
+   ========================================================================== */
+
+.minigame-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(4, 12, 24, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s ease;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.minigame-modal-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.minigame-modal-wrapper {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.minigame-modal-card {
+    width: 100%;
+    background: linear-gradient(135deg, rgba(14, 28, 48, 0.96) 0%, rgba(8, 18, 34, 0.98) 100%);
+    border: 2px solid rgba(255, 209, 102, 0.45);
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(255, 209, 102, 0.15);
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    animation: minigameCardPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+@keyframes minigameCardPop {
+    from {
+        transform: scale(0.85) translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Header */
+.minigame-header {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 0.8rem;
+}
+
+.minigame-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.8rem;
+    background: rgba(255, 209, 102, 0.15);
+    border: 1px solid #ffd166;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #ffd166;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.minigame-title {
+    margin: 0;
+    font-family: 'Bungee', cursive, sans-serif;
+    font-size: 1.4rem;
+    color: #ffffff;
+    text-shadow: 0 0 10px rgba(255, 209, 102, 0.4);
+    letter-spacing: 0.5px;
+    line-height: 1.3;
+}
+
+.minigame-desc {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    line-height: 1.4;
+}
+
+/* Content Container */
+.minigame-content {
+    width: 100%;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+/* Result Banner (Hiển thị khi hoàn thành) */
+.minigame-result-banner {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 18, 34, 0.95);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    z-index: 50;
+    animation: resultBannerFade 0.25s ease-out;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+@keyframes resultBannerFade {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.minigame-result-banner.success {
+    border: 2px solid #22c55e;
+    box-shadow: 0 0 25px rgba(34, 197, 94, 0.4);
+}
+
+.minigame-result-banner.fail {
+    border: 2px solid #ef4444;
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.4);
+}
+
+.minigame-result-banner .result-icon {
+    font-size: 3rem;
+}
+
+.minigame-result-banner .result-title {
+    font-family: 'Bungee', sans-serif;
+    font-size: 1.3rem;
+    color: #ffffff;
+}
+
+.minigame-result-banner.success .result-title {
+    color: #86efac;
+}
+
+.minigame-result-banner.fail .result-title {
+    color: #fca5a5;
+}
+
+.minigame-result-banner .result-bonus {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ffd166;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .minigame-modal-card {
+        padding: 1.1rem;
+        border-radius: 16px;
+    }
+    .minigame-title {
+        font-size: 1.15rem;
+    }
+}
+

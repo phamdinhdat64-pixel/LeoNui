@@ -1,0 +1,434 @@
+/* ==========================================================================
+   MINI-GAME 3: CĂN LỰC GIÓ (WIND FORCE TIMING)
+   ========================================================================== */
+
+.game3-wrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.95rem;
+    padding: 0.2rem 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+}
+
+/* ==========================================================================
+   Top Header Bar
+   ========================================================================== */
+.game3-header-bar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+}
+
+.game3-attempt-pill,
+.game3-wind-pill,
+.game3-score-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.65rem;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    font-size: 0.78rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.game3-attempt-pill {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+}
+
+.game3-attempt-pill .pill-value {
+    color: #38bdf8;
+    font-family: 'Bungee', sans-serif;
+    font-size: 0.95rem;
+}
+
+.game3-wind-pill {
+    border-color: #a78bfa;
+    background: rgba(167, 139, 250, 0.12);
+}
+
+.game3-wind-pill .pill-value {
+    color: #c4b5fd;
+    font-weight: 700;
+}
+
+.game3-score-pill {
+    border-color: #ffd166;
+    background: rgba(255, 209, 102, 0.12);
+}
+
+.game3-score-pill .pill-value {
+    color: #ffd166;
+    font-family: 'Bungee', sans-serif;
+    font-size: 1.05rem;
+}
+
+.game3-score-pill .pill-max {
+    color: #94a3b8;
+    font-size: 0.75rem;
+}
+
+/* ==========================================================================
+   3 Attempts Tracker
+   ========================================================================== */
+.game3-tracker {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.attempt-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    padding: 0.4rem 0.2rem;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    font-size: 0.75rem;
+    transition: all 0.25s ease;
+}
+
+.attempt-card.active {
+    border-color: #ffd166;
+    background: rgba(255, 209, 102, 0.15);
+    box-shadow: 0 0 14px rgba(255, 209, 102, 0.35);
+    transform: translateY(-1px);
+}
+
+.attempt-card .card-title {
+    color: #94a3b8;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.attempt-card .card-res {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: #64748b;
+}
+
+.attempt-card .card-res.perfect {
+    color: #4ade80;
+    text-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+}
+
+.attempt-card .card-res.good {
+    color: #38bdf8;
+    text-shadow: 0 0 6px rgba(56, 189, 248, 0.5);
+}
+
+.attempt-card .card-res.low {
+    color: #f87171;
+}
+
+/* ==========================================================================
+   Main Wind Gauge Section
+   ========================================================================== */
+.game3-gauge-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin: 0.3rem 0;
+}
+
+.game3-scale-labels {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.72rem;
+    font-weight: 750;
+    color: #94a3b8;
+    padding: 0 0.4rem;
+    box-sizing: border-box;
+}
+
+.scale-mark.center-mark {
+    color: #4ade80;
+    font-size: 0.8rem;
+    font-family: 'Bungee', sans-serif;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+}
+
+/* The Long Gauge Track */
+.game3-gauge-track {
+    width: 100%;
+    height: 52px;
+    background: rgba(2, 6, 23, 0.92);
+    border: 2.5px solid rgba(255, 255, 255, 0.28);
+    border-radius: 26px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    box-shadow: inset 0 4px 14px rgba(0, 0, 0, 0.8), 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Color Zones */
+.gauge-zone {
+    height: 100%;
+}
+
+.zone-left-outer,
+.zone-right-outer {
+    flex: 1;
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.35), rgba(239, 68, 68, 0.15));
+}
+
+.zone-right-outer {
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.35));
+}
+
+.zone-left-mid,
+.zone-right-mid {
+    width: 20%;
+    background: rgba(234, 179, 8, 0.25);
+    border-left: 1px dashed rgba(234, 179, 8, 0.4);
+    border-right: 1px dashed rgba(234, 179, 8, 0.4);
+}
+
+/* Perfect Center Zone: 46.5% - 53.5% (Thu hẹp diện tích xuống Width 7%) */
+.zone-perfect {
+    width: 7%;
+    background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+    border-left: 2px solid #4ade80;
+    border-right: 2px solid #4ade80;
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+}
+
+.perfect-text {
+    font-family: 'Bungee', sans-serif;
+    font-size: 0.8rem;
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 8px #ffd166;
+}
+
+.perfect-crosshair {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.8);
+    transform: translateX(-50%);
+}
+
+/* Red Indicator Needle (Đọc Đỏ) */
+.game3-needle {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 6px;
+    transform: translateX(-50%);
+    z-index: 10;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.needle-line {
+    width: 4px;
+    height: 100%;
+    background: #ef4444;
+    border-radius: 2px;
+    box-shadow: 0 0 10px #ef4444, 0 0 18px #f87171, 0 0 25px rgba(239, 68, 68, 0.9);
+}
+
+.needle-arrow-top,
+.needle-arrow-bottom {
+    color: #ef4444;
+    font-size: 11px;
+    line-height: 1;
+    text-shadow: 0 0 8px #ef4444;
+}
+
+.game3-needle.stopped .needle-line {
+    box-shadow: 0 0 15px #ffd166, 0 0 25px #ffffff;
+}
+
+.game3-needle.perfect-stop .needle-line {
+    background: #4ade80;
+    box-shadow: 0 0 15px #4ade80, 0 0 30px #22c55e;
+}
+
+.game3-needle.perfect-stop .needle-arrow-top,
+.game3-needle.perfect-stop .needle-arrow-bottom {
+    color: #4ade80;
+}
+
+/* Hit Feedback Badge */
+.game3-hit-feedback {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 0.35rem;
+}
+
+.hit-score-badge {
+    padding: 0.35rem 1rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 750;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.hit-score-badge.active-wait {
+    border-color: #38bdf8;
+    color: #38bdf8;
+}
+
+.hit-score-badge.perfect {
+    border-color: #4ade80;
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.15);
+    box-shadow: 0 0 16px rgba(74, 222, 128, 0.4);
+    animation: perfectBounce 0.3s cubic-bezier(0.18, 1.2, 0.3, 1);
+}
+
+@keyframes perfectBounce {
+    0% { transform: scale(0.9); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.hit-score-badge.good {
+    border-color: #38bdf8;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+}
+
+.hit-score-badge.low {
+    border-color: #f87171;
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.15);
+}
+
+.hit-score-badge.finished {
+    border-color: #ffd166;
+    color: #ffd166;
+    background: rgba(255, 209, 102, 0.18);
+    font-size: 0.9rem;
+}
+
+/* ==========================================================================
+   Action Button Area
+   ========================================================================== */
+.game3-action-area {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.game3-stop-btn {
+    width: 100%;
+    padding: 0.95rem 1.4rem;
+    background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 14px;
+    color: #ffffff;
+    font-family: 'Bungee', cursive, sans-serif;
+    font-size: 1.15rem;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(234, 88, 12, 0.45);
+    transition: all 0.12s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    outline: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.game3-stop-btn:hover {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(245, 158, 11, 0.6);
+}
+
+.game3-stop-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.4);
+}
+
+.game3-stop-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.btn-stop-icon {
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.game3-helper-hint {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 0.72rem;
+    text-align: center;
+}
+
+/* ==========================================================================
+   Responsive Mobile Adjustments
+   ========================================================================== */
+@media (max-width: 480px) {
+    .game3-gauge-track {
+        height: 46px;
+    }
+
+    .perfect-text {
+        font-size: 0.82rem;
+    }
+
+    .game3-stop-btn {
+        padding: 0.85rem 1rem;
+        font-size: 1rem;
+    }
+
+    .game3-attempt-pill,
+    .game3-wind-pill,
+    .game3-score-pill {
+        padding: 0.3rem 0.45rem;
+        font-size: 0.72rem;
+    }
+
+    .attempt-card {
+        padding: 0.3rem 0.15rem;
+    }
+
+    .attempt-card .card-title {
+        font-size: 0.64rem;
+    }
+}
+

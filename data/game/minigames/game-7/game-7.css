@@ -1,0 +1,600 @@
+/* ==========================================================================
+   MINI-GAME 7: ĐUA THUYỀN RỒNG (DRAGON BOAT RHYTHM RACE)
+   ========================================================================== */
+
+.game7-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 0.5rem 0.6rem 0.6rem;
+    box-sizing: border-box;
+    position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    font-family: 'Be Vietnam Pro', sans-serif;
+    color: #f8fafc;
+}
+
+/* 1. Top HUD Bar */
+.game7-hud-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.game7-hud-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1.5px solid rgba(148, 163, 184, 0.25);
+    backdrop-filter: blur(8px);
+}
+
+.game7-hud-pill.timer-pill {
+    border-color: #38bdf8;
+    color: #e0f2fe;
+}
+
+.game7-hud-pill.timer-pill .hud-val {
+    font-family: 'Bungee', monospace;
+    font-size: 1.15rem;
+    color: #38bdf8;
+}
+
+.game7-hud-pill.timer-pill .hud-val.time-critical {
+    color: #ef4444;
+    animation: timerPulse 0.4s infinite alternate;
+}
+
+@keyframes timerPulse {
+    from { transform: scale(1); text-shadow: 0 0 6px #ef4444; }
+    to { transform: scale(1.1); text-shadow: 0 0 16px #f87171; }
+}
+
+.game7-hud-pill.streak-pill {
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #fef3c7;
+    transition: all 0.2s ease;
+}
+
+.game7-hud-pill.streak-pill .hud-val {
+    font-family: 'Bungee', monospace;
+    font-size: 0.95rem;
+    color: #fbbf24;
+}
+
+.game7-hud-pill.streak-pill.streak-hot {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(239, 68, 68, 0.3));
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.6);
+    transform: scale(1.05);
+}
+
+.game7-hud-pill.score-pill {
+    border-color: #22c55e;
+    color: #f0fdf4;
+}
+
+.game7-hud-pill.score-pill .hud-val {
+    font-family: 'Bungee', monospace;
+    font-size: 1.25rem;
+    color: #4ade80;
+    transition: transform 0.1s ease;
+}
+
+.game7-hud-pill.score-pill .hud-val.score-bump {
+    transform: scale(1.25);
+}
+
+/* 2. Sân Khấu Đường Đua Thuyền & Làn Sóng Sông Hàn */
+.game7-stage {
+    position: relative;
+    width: 100%;
+    height: 255px;
+    border-radius: 18px;
+    background: radial-gradient(circle at 50% 30%, #0369a1 0%, #0c4a6e 40%, #082f49 70%, #021e33 100%);
+    border: 2px solid rgba(56, 189, 248, 0.45);
+    box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.75), 0 8px 30px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    overflow: hidden;
+    margin-bottom: 0.6rem;
+}
+
+/* Làn Sóng Nước Sông */
+.game7-river-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+}
+
+.river-wave {
+    position: absolute;
+    width: 200%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        -45deg,
+        rgba(56, 189, 248, 0.04) 0px,
+        rgba(56, 189, 248, 0.04) 15px,
+        rgba(14, 165, 233, 0.09) 15px,
+        rgba(14, 165, 233, 0.09) 30px
+    );
+}
+
+.river-wave.wave-1 {
+    animation: riverDrift 6s linear infinite;
+    opacity: 0.7;
+}
+
+.river-wave.wave-2 {
+    animation: riverDrift 4s linear infinite reverse;
+    opacity: 0.4;
+    top: 30px;
+}
+
+@keyframes riverDrift {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+/* Cụm Thuyền Rồng Đua */
+.game7-boat-container {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 290px;
+    height: 92px;
+    z-index: 3;
+    pointer-events: none;
+    transition: transform 0.12s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.6));
+}
+
+.game7-boat-svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Hiệu ứng thuyền phóng vọt khi chèo trúng */
+.game7-boat-container.boat-surge {
+    transform: translateX(-44%) translateY(-3px) scale(1.03);
+}
+
+.game7-boat-container.boat-stall {
+    transform: translateX(-55%) translateY(3px) scale(0.97);
+}
+
+/* Bọt sóng bắn tung tóe */
+.game7-splash-burst {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%) scale(0);
+    width: 140px;
+    height: 35px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(255, 255, 255, 0.85) 0%, rgba(56, 189, 248, 0.5) 50%, transparent 100%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.25s ease-out, opacity 0.25s ease-out;
+}
+
+.game7-splash-burst.active {
+    transform: translateX(-50%) scale(1.3);
+    opacity: 1;
+}
+
+/* 3. Cụm Vòng Tròn Trống Nhịp Điệu (Center Drum & Ring) */
+.game7-drum-center {
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 110px;
+    height: 110px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+/* Vạch Vàng Cố Định Mục Tiêu (Golden Target Ring) */
+.game7-golden-ring {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 3.5px solid #fbbf24;
+    box-shadow: 0 0 18px rgba(251, 191, 36, 0.7), inset 0 0 15px rgba(251, 191, 36, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle, rgba(245, 158, 11, 0.2) 0%, rgba(15, 23, 42, 0.85) 80%);
+    transition: transform 0.08s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.golden-ring-core {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    border: 1.5px dashed rgba(251, 191, 36, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Hoa văn mặt trời trống đồng ở giữa */
+.drum-sun-motif {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fde047 0%, #d97706 100%);
+    box-shadow: 0 0 10px #f59e0b;
+}
+
+/* 4 Điểm Định Vị Nhịp (Markers) */
+.golden-marker {
+    position: absolute;
+    background: #fbbf24;
+    box-shadow: 0 0 8px #fbbf24;
+}
+
+.golden-marker.marker-top {
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.golden-marker.marker-bottom {
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 8px;
+    border-radius: 2px;
+}
+
+.golden-marker.marker-left {
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 4px;
+    border-radius: 2px;
+}
+
+.golden-marker.marker-right {
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 4px;
+    border-radius: 2px;
+}
+
+/* Hiệu ứng khi hit trúng / trượt */
+.game7-golden-ring.pulse-hit {
+    transform: scale(1.14);
+    border-color: #fef08a;
+    box-shadow: 0 0 30px #fde047, inset 0 0 25px #fde047;
+}
+
+.game7-golden-ring.pulse-miss {
+    transform: scale(0.92);
+    border-color: #ef4444;
+    box-shadow: 0 0 20px #ef4444, inset 0 0 15px #ef4444;
+}
+
+/* Vòng Nhịp Co Giãn (Dynamic Beat Ring) */
+.game7-beat-ring {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 3.5px solid #38bdf8;
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.8);
+    pointer-events: none;
+    display: none;
+    will-change: transform, opacity;
+}
+
+.game7-beat-ring.in-target-zone {
+    border-color: #fde047;
+    box-shadow: 0 0 22px #fde047;
+}
+
+/* Vòng Sóng Xung Lực Bùng Nổ Khi Trúng */
+.game7-shockwave-ring {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 3px solid #fbbf24;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.game7-shockwave-ring.fire-perfect {
+    animation: shockwaveBoom 0.38s ease-out forwards;
+    border-color: #fde047;
+    box-shadow: 0 0 25px #fde047;
+}
+
+.game7-shockwave-ring.fire-good {
+    animation: shockwaveBoom 0.35s ease-out forwards;
+    border-color: #38bdf8;
+    box-shadow: 0 0 20px #38bdf8;
+}
+
+@keyframes shockwaveBoom {
+    0% { transform: scale(1); opacity: 1; border-width: 4px; }
+    100% { transform: scale(1.65); opacity: 0; border-width: 1px; }
+}
+
+/* Text Bay Phản Hồi Tức Thì */
+.game7-feedback-float {
+    position: absolute;
+    top: -26px;
+    left: 50%;
+    transform: translateX(-50%) translateY(0) scale(0.8);
+    font-family: 'Bungee', cursive, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 800;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.3s ease;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
+}
+
+.game7-feedback-float.active {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-14px) scale(1.1);
+}
+
+.game7-feedback-float.hit {
+    color: #fde047;
+    text-shadow: 0 0 12px rgba(253, 224, 71, 0.9);
+}
+
+.game7-feedback-float.miss {
+    color: #ef4444;
+    text-shadow: 0 0 12px rgba(239, 68, 68, 0.9);
+}
+
+/* 4. Thanh Tiến Độ Đường Đua Thuyền */
+.game7-track-progress {
+    position: absolute;
+    bottom: 4px;
+    left: 12px;
+    right: 12px;
+    height: 14px;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 999px;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+}
+
+.track-boat-marker {
+    position: absolute;
+    font-size: 0.95rem;
+    transform: translateX(-50%);
+    transition: left 0.1s linear;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.track-finish-flag {
+    position: absolute;
+    right: 6px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    color: #fde047;
+    letter-spacing: 0.5px;
+}
+
+/* 5. Badge Đếm Ngược 3, 2, 1 Lúc Đầu */
+.game7-countdown-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    font-family: 'Bungee', cursive, monospace;
+    font-size: 3.8rem;
+    font-weight: 900;
+    color: #fde047;
+    text-shadow: 0 0 25px rgba(253, 224, 71, 0.85), 0 0 50px rgba(245, 158, 11, 0.7);
+    z-index: 15;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.game7-countdown-badge.visible {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.game7-countdown-badge.pop {
+    transform: translate(-50%, -50%) scale(1.25);
+    color: #38bdf8;
+    text-shadow: 0 0 35px #38bdf8;
+}
+
+/* 6. Thẻ Bảng Kết Quả */
+.game7-result-card {
+    position: absolute;
+    inset: 12px;
+    z-index: 20;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
+    border: 2px solid #fbbf24;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.75rem;
+    box-sizing: border-box;
+    opacity: 0;
+    transform: scale(0.85);
+    pointer-events: none;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 0 25px rgba(251, 191, 36, 0.4);
+}
+
+.game7-result-card.visible {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+}
+
+.game7-res-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #ffd166;
+}
+
+.game7-res-score {
+    font-family: 'Bungee', monospace;
+    font-size: 2.3rem;
+    font-weight: 700;
+    color: #4ade80;
+    text-shadow: 0 0 15px rgba(74, 222, 128, 0.8);
+}
+
+.game7-res-details {
+    font-size: 0.78rem;
+    color: #cbd5e1;
+    text-align: center;
+}
+
+.game7-res-verdict {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fde047;
+    text-align: center;
+    line-height: 1.35;
+    margin-top: 0.2rem;
+}
+
+/* 7. Nút Chèo Lớn */
+.game7-controls-area {
+    width: 100%;
+}
+
+.game7-btn-row {
+    width: 100%;
+    min-height: 64px;
+    border-radius: 14px;
+    font-family: 'Bungee', cursive, sans-serif;
+    font-size: 1.15rem;
+    font-weight: 800;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    cursor: pointer;
+    background: linear-gradient(135deg, #ea580c 0%, #c2410c 50%, #9a3412 100%);
+    border: 2px solid #fbbf24;
+    color: #ffffff;
+    box-shadow: 0 6px 20px rgba(234, 88, 12, 0.45), inset 0 2px 3px rgba(255, 255, 255, 0.3);
+    transition: transform 0.08s ease, filter 0.12s ease;
+    outline: none;
+}
+
+.game7-btn-row .btn-subtext {
+    font-size: 0.65rem;
+    font-family: 'Be Vietnam Pro', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #fef08a;
+    opacity: 0.9;
+}
+
+.game7-btn-row:hover {
+    filter: brightness(1.12);
+}
+
+.game7-btn-row:active, .game7-btn-row.pressed {
+    transform: scale(0.96) translateY(2px);
+    filter: brightness(0.92);
+}
+
+.game7-btn-row:disabled {
+    background: #475569;
+    border-color: #64748b;
+    color: #94a3b8;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+/* Hướng dẫn */
+.game7-hint-guide {
+    font-size: 0.74rem;
+    color: #94a3b8;
+    text-align: center;
+    margin-top: 0.35rem;
+    line-height: 1.4;
+}
+
+.game7-hint-guide strong {
+    color: #fbbf24;
+}
+
+/* Responsive Cho Thiết Bị Di Động */
+@media (max-width: 480px) {
+    .game7-stage {
+        height: 220px;
+    }
+    .game7-drum-center {
+        top: 38px;
+        width: 95px;
+        height: 95px;
+    }
+    .game7-golden-ring {
+        width: 86px;
+        height: 86px;
+    }
+    .game7-beat-ring {
+        width: 86px;
+        height: 86px;
+    }
+    .game7-boat-container {
+        width: 250px;
+        bottom: 20px;
+    }
+    .game7-btn-row {
+        min-height: 58px;
+        font-size: 1.05rem;
+    }
+}
+
