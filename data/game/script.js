@@ -309,7 +309,8 @@ const CHARACTER_ROSTER = [
 ];
 
 const DEFAULT_PRESETS = CHARACTER_ROSTER.map((c, idx) => ({
-    name: c.name,
+    name: idx === 0 ? 'Người chơi 1 (Host)' : `Người chơi ${idx + 1}`,
+    botDefaultName: c.name,
     color: c.color,
     avatarIcon: c.icon,
     charId: c.id,
@@ -732,9 +733,8 @@ function updateTurnButtons(activePlayer) {
         dom.btnRollDice.classList.remove('pulse-active');
         dom.btnRollDice.querySelector('.roll-text').textContent = '🎮 ĐANG THI ĐẤU MINIGAME...';
         dom.turnStatusLabel.textContent = `MINIGAME VÒNG ${gameState.currentRound}`;
-        if (!gameState.isAnimatingMove) {
-            triggerRoundMinigamePhase();
-        }
+        // KHÔNG gọi triggerRoundMinigamePhase() ở đây vì hàm này bị gọi nhiều lần khi render UI.
+        // triggerRoundMinigamePhase() chỉ được gọi từ onGameStateReceived hoặc onPlayerMovementFinished.
     } else {
         dom.btnRollDice.classList.remove('buff-x2-active');
         dom.btnRollDice.disabled = true;
@@ -1060,13 +1060,13 @@ function renderModalCharacterGrid() {
 
 function selectCharacter(char, slotIndex = null) {
     if (slotIndex !== null) {
-        // Host chọn nhân vật cho slot `slotIndex`
+        // Host chọn linh thú cho slot `slotIndex`
         const p = gameState.players[slotIndex];
         if (p) {
             p.avatarIcon = char.icon;
             p.color = char.color;
-            const isPresetName = CHARACTER_ROSTER.some(c => c.name === p.name) || p.name.startsWith('Người chơi');
-            if (isPresetName || !p.name) {
+            // Chỉ đổi tên thành tên con giáp nếu slot này là Bot AI
+            if (p.isBot) {
                 p.name = char.name;
             }
             if (socket && socket.readyState === WebSocket.OPEN && isHost) {
@@ -1083,21 +1083,35 @@ function selectCharacter(char, slotIndex = null) {
         renderSetupInputs(currentSelectedCount);
         renderTokens();
     } else {
-        // Guest chọn nhân vật cho chính mình
+        // Guest chọn linh thú cho chính mình:
+        // TUYỆT ĐỐI KHÔNG GÁN TÊN CON GIÁP VÀO TÊN NGƯỜI CHƠI!
         const myP = gameState.players.find(p => p.id === myPlayerId);
         if (myP) {
             myP.avatarIcon = char.icon;
             myP.color = char.color;
-            const isPresetName = CHARACTER_ROSTER.some(c => c.name === myP.name) || myP.name.startsWith('Người chơi');
-            if (isPresetName || !myP.name) {
-                myP.name = char.name;
-                if (dom.inputMyCustomName) dom.inputMyCustomName.value = char.name;
+
+            // Lấy tên hiện tại của người chơi: ưu tiên ô input > myP.name > localStorage
+            let currentName = (dom.inputMyCustomName && dom.inputMyCustomName.value.trim()) || myP.name;
+            if (!currentName || CHARACTER_ROSTER.some(c => c.name === currentName)) {
+                let saved = null;
+                try { saved = localStorage.getItem('player_custom_name'); } catch (_) {}
+                if (saved && !CHARACTER_ROSTER.some(c => c.name === saved)) {
+                    currentName = saved;
+                } else if (!currentName) {
+                    currentName = 'Người chơi';
+                }
             }
+            myP.name = currentName;
+            if (dom.inputMyCustomName && !dom.inputMyCustomName.value.trim()) {
+                dom.inputMyCustomName.value = currentName;
+            }
+
             try {
                 localStorage.setItem('player_custom_avatar', char.icon);
                 localStorage.setItem('player_custom_color', char.color);
-                localStorage.setItem('player_custom_name', myP.name);
+                localStorage.setItem('player_custom_name', currentName);
             } catch (_) {}
+
             if (dom.myPlayerAvatar) {
                 dom.myPlayerAvatar.style.backgroundColor = char.color;
                 dom.myPlayerAvatar.style.boxShadow = `0 0 10px ${char.color}`;
@@ -1106,11 +1120,11 @@ function selectCharacter(char, slotIndex = null) {
             if (dom.myPlayerSlotName) {
                 dom.myPlayerSlotName.textContent = `${myP.name} (${char.icon})`;
             }
-            const chosenName = (dom.inputMyCustomName && dom.inputMyCustomName.value.trim()) || myP.name;
+
             const myIdx = parseInt(myP.id.replace('player_', ''), 10) - 1;
             sendWs({
                 t: 'join_game',
-                name: chosenName,
+                name: currentName,
                 avatar: char.icon,
                 color: char.color
             });
@@ -1118,7 +1132,7 @@ function selectCharacter(char, slotIndex = null) {
                 sendWs({
                     t: 'set_player_info',
                     index: myIdx,
-                    name: chosenName,
+                    name: currentName,
                     avatar: char.icon,
                     color: char.color,
                     isBot: false
@@ -1126,7 +1140,7 @@ function selectCharacter(char, slotIndex = null) {
             }
             renderGuestCharacterGrid();
             renderTokens();
-            showBanner(`ĐÃ CHỌN LINH THÚ: ${char.name.toUpperCase()} ${char.icon}`);
+            showBanner(`ĐÃ CHỌN LINH THÚ: ${char.icon}`);
         }
     }
 }
@@ -1526,12 +1540,14 @@ function onGameStateReceived(msg) {
     gameState.phase = msg.phase;
 
     // Khi server thông báo chuyển sang giai đoạn MINIGAME của vòng
-    if (gameState.phase === 'MINIGAME' && !isMinigameSessionActive && gameState.phase !== 'SETUP') {
+    if (gameState.phase === 'MINIGAME' && !isMinigameSessionActive) {
         if (!gameState.isAnimatingMove) {
+            // Animation đã xong, có thể khởi động minigame ngay
             setTimeout(() => {
                 triggerRoundMinigamePhase();
             }, 350);
         }
+        // Nếu đang animating: onPlayerMovementFinished sẽ detect phase=MINIGAME và trigger sau
     }
 
     // Số lượng người chơi tham gia ván đấu:
@@ -3285,8 +3301,19 @@ function onMinigameResultReceived(msg) {
 function onPlayerMovementFinished(player) {
     gameState.isAnimatingMove = false;
 
+    // Nếu đang kết nối ESP32: chỉ server mới có quyền chuyển sang phase MINIGAME.
+    // Client chỉ cần chờ server gửi game_state với phase='MINIGAME'.
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        // Nếu server đã gửi phase=MINIGAME (nhận được trong lúc animate), trigger ngay bây giờ
+        if (gameState.phase === 'MINIGAME' && !isMinigameSessionActive) {
+            setTimeout(() => { triggerRoundMinigamePhase(); }, 350);
+        }
+        return;
+    }
+
+    // Chế độ Offline: client tự quyết định khi nào chuyển sang MINIGAME
     // Kiểm tra xem đã kết thúc toàn bộ lượt tung xúc xắc trong vòng chưa:
-    const isRoundDone = (gameState.currentTurnIndex + 1 >= gameState.turnOrder.length) || (gameState.phase === 'MINIGAME');
+    const isRoundDone = (gameState.currentTurnIndex + 1 >= gameState.turnOrder.length);
     if (isRoundDone) {
         // TẤT CẢ NGƯỜI CHƠI TRONG VÒNG ĐÃ TUNG XÚC XẮC XONG -> TIẾN VÀO MINIGAME!
         setTimeout(() => {
