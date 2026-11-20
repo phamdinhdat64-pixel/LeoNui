@@ -20,7 +20,7 @@ namespace {
 
 constexpr char kSsid[] = "BOARD GAME";
 constexpr char kPortalUrl[] = "http://192.168.4.1/game/";
-constexpr std::size_t kMaxMessage = 512;
+constexpr std::size_t kMaxMessage = 1024;
 constexpr std::uint32_t kHeartbeatTimeoutMs = 10000;
 const IPAddress kApIp(192, 168, 4, 1);
 const IPAddress kSubnet(255, 255, 255, 0);
@@ -41,6 +41,18 @@ AsyncWebSocket webSocket("/ws");
 QueueHandle_t eventQueue = nullptr;
 ConnectionCore room("");
 GameCore game;
+std::string selectedMinigame;
+std::uint16_t selectedMinigameRound = 0;
+
+bool validMinigame(const std::string& gameId) {
+  static const char* const ids[] = {
+      "game-1", "game-2", "game-3", "game-4", "game-5",
+      "game-6", "game-7", "game-8", "game-9"};
+  for (const char* id : ids) {
+    if (gameId == id) return true;
+  }
+  return false;
+}
 
 std::string makeBootId() {
   static const char hex[] = "0123456789abcdef";
@@ -126,6 +138,11 @@ void sendGameState(std::uint32_t clientId) {
   doc["bootId"] = room.bootId().c_str();
   doc["phase"] = game.phaseString();
   doc["round"] = game.currentRound();
+  if (game.phase() == GamePhase::Minigame &&
+      selectedMinigameRound == game.currentRound() &&
+      !selectedMinigame.empty()) {
+    doc["minigame"] = selectedMinigame.c_str();
+  }
   doc["turnIndex"] = game.currentTurnIndex();
   doc["activePlayer"] = game.activePlayerIndex();
   doc["lastRoll"] = game.lastRoll();
@@ -283,13 +300,13 @@ void processMessage(const SocketEvent& event) {
 
   if (type == "join_game") {
     std::string playerName;
-    jsonString(document, "name", 24, playerName);
+    jsonString(document, "name", 60, playerName);
     std::string avatar;
     jsonString(document, "avatar", 16, avatar);
     std::string color;
     jsonString(document, "color", 16, color);
     const auto* dev = room.byClient(event.clientId);
-    if (dev) {
+    if (dev && game.phase() == GamePhase::Setup) {
       const bool isHost = room.isHost(event.clientId);
       game.registerPlayer(dev->deviceId, event.clientId, playerName, avatar, color, isHost);
       broadcastGameState();
@@ -313,7 +330,7 @@ void processMessage(const SocketEvent& event) {
     std::string playerName;
     std::string avatar;
     std::string color;
-    jsonString(document, "name", 24, playerName);
+    jsonString(document, "name", 60, playerName);
     jsonString(document, "avatar", 16, avatar);
     jsonString(document, "color", 16, color);
     bool isBot = document["isBot"] | false;
@@ -363,7 +380,34 @@ void processMessage(const SocketEvent& event) {
         colors.push_back(c ? c : "");
       }
     }
+    selectedMinigame.clear();
+    selectedMinigameRound = 0;
     game.startGame(count, botFlags, names, millis(), avatars, colors);
+    broadcastGameState();
+    return;
+  }
+
+  if (type == "select_minigame") {
+    if (!room.isHost(event.clientId)) {
+      sendError(event.clientId, "NOT_HOST");
+      return;
+    }
+    if (game.phase() != GamePhase::Minigame ||
+        (document["round"] | 0) != game.currentRound()) {
+      sendError(event.clientId, "MINIGAME_NOT_ACTIVE");
+      return;
+    }
+    std::string gameId;
+    if (!jsonString(document, "game", 8, gameId) ||
+        !validMinigame(gameId)) {
+      sendError(event.clientId, "INVALID_MINIGAME");
+      return;
+    }
+    if (selectedMinigameRound == game.currentRound()) {
+      return;
+    }
+    selectedMinigame = gameId;
+    selectedMinigameRound = game.currentRound();
     broadcastGameState();
     return;
   }
@@ -408,7 +452,8 @@ void processMessage(const SocketEvent& event) {
   }
 
   if (type == "minigame_finish") {
-    if (game.phase() != GamePhase::Minigame) {
+    if (!room.isHost(event.clientId) ||
+        game.phase() != GamePhase::Minigame) {
       return;
     }
 
@@ -439,6 +484,8 @@ void processMessage(const SocketEvent& event) {
     }
 
     game.advanceRoundWithNewOrder(newOrder, millis());
+    selectedMinigame.clear();
+    selectedMinigameRound = 0;
     broadcastGameState();
     return;
   }
@@ -449,6 +496,8 @@ void processMessage(const SocketEvent& event) {
       return;
     }
     game.resetGame(true);
+    selectedMinigame.clear();
+    selectedMinigameRound = 0;
     broadcastGameState();
     return;
   }

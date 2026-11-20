@@ -1538,16 +1538,18 @@ function onGameStateReceived(msg) {
     updateRoundDisplay(msg.round);
     gameState.currentTurnIndex = msg.turnIndex;
     gameState.phase = msg.phase;
+    gameState.minigameId = typeof msg.minigame === 'string' ? msg.minigame : null;
+    if (gameState.currentRound !== prevRound) {
+        minigameSelectionPendingRound = null;
+    }
 
-    // Khi server thông báo chuyển sang giai đoạn MINIGAME của vòng
-    if (gameState.phase === 'MINIGAME' && !isMinigameSessionActive) {
+    // Chỉ Host chọn minigame trên server; các máy khách chờ lựa chọn đồng bộ.
+    if (gameState.phase === 'MINIGAME') {
         if (!gameState.isAnimatingMove) {
-            // Animation đã xong, có thể khởi động minigame ngay
             setTimeout(() => {
-                triggerRoundMinigamePhase();
+                handleRoundMinigamePhase();
             }, 350);
         }
-        // Nếu đang animating: onPlayerMovementFinished sẽ detect phase=MINIGAME và trigger sau
     }
 
     // Số lượng người chơi tham gia ván đấu:
@@ -3178,6 +3180,7 @@ function initGame() {
 // ==========================================================================
 let isMinigameSessionActive = false;
 let lastPlayedMinigameId = null;
+let minigameSelectionPendingRound = null;
 
 const ALL_MINIGAMES = [
     { id: 'game-1', name: 'ĐUA SỨC BỀN', icon: '🔥', desc: 'Bấm nút tròn liên tục nạp đầy thể lực trong 8 giây' },
@@ -3304,9 +3307,8 @@ function onPlayerMovementFinished(player) {
     // Nếu đang kết nối ESP32: chỉ server mới có quyền chuyển sang phase MINIGAME.
     // Client chỉ cần chờ server gửi game_state với phase='MINIGAME'.
     if (socket && socket.readyState === WebSocket.OPEN) {
-        // Nếu server đã gửi phase=MINIGAME (nhận được trong lúc animate), trigger ngay bây giờ
-        if (gameState.phase === 'MINIGAME' && !isMinigameSessionActive) {
-            setTimeout(() => { triggerRoundMinigamePhase(); }, 350);
+        if (gameState.phase === 'MINIGAME') {
+            setTimeout(() => { handleRoundMinigamePhase(); }, 350);
         }
         return;
     }
@@ -3352,22 +3354,53 @@ function onPlayerMovementFinished(player) {
     checkOfflineBotTurn();
 }
 
-// Giai đoạn Minigame của Vòng (Cả phòng cùng thi đấu 1 trong 9 minigame ngẫu nhiên)
-async function triggerRoundMinigamePhase() {
-    if (isMinigameSessionActive) return;
-    if (gameState.phase === 'GAME_OVER') return;
+function handleRoundMinigamePhase() {
+    if (gameState.phase !== 'MINIGAME' || gameState.isAnimatingMove || isMinigameSessionActive) return;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        if (gameState.minigameId) {
+            startRoundMinigame(gameState.minigameId);
+        } else if (isHost && minigameSelectionPendingRound !== gameState.currentRound) {
+            const chosenGame = pickRandomMinigame();
+            minigameSelectionPendingRound = gameState.currentRound;
+            sendWs({
+                t: 'select_minigame',
+                round: gameState.currentRound,
+                game: chosenGame.id
+            });
+        }
+        return;
+    }
+    triggerRoundMinigamePhase();
+}
 
-    isMinigameSessionActive = true;
+// Giai đoạn Minigame của Vòng (Chế độ offline chọn local; phòng mạng chờ Host).
+function triggerRoundMinigamePhase() {
+    if (isMinigameSessionActive || gameState.phase === 'GAME_OVER') return;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        handleRoundMinigamePhase();
+        return;
+    }
     gameState.phase = 'MINIGAME';
+    startRoundMinigame(pickRandomMinigame().id);
+}
+
+async function startRoundMinigame(gameType) {
+    if (isMinigameSessionActive || gameState.phase === 'GAME_OVER') return;
+    const chosenGame = ALL_MINIGAMES.find(game => game.id === gameType);
+    if (!chosenGame) {
+        console.error(`[Minigame] Server sent an unknown minigame: ${gameType}`);
+        showBanner('⚠️ Không nhận diện được minigame. Vui lòng tải lại trang.');
+        return;
+    }
+    isMinigameSessionActive = true;
+    minigameSelectionPendingRound = null;
     dom.btnRollDice.disabled = true;
     dom.btnRollDice.classList.remove('pulse-active');
     dom.btnRollDice.querySelector('.roll-text').textContent = '🎮 ĐANG THI ĐẤU MINIGAME...';
     dom.turnStatusLabel.textContent = `MINIGAME VÒNG ${gameState.currentRound}`;
 
-    // 1. Chọn ngẫu nhiên 1 trong 9 Minigame:
-    const chosenGame = pickRandomMinigame();
     addGameLog(`🏁 <strong>[KẾT THÚC LƯỢT TUNG VÒNG ${gameState.currentRound}]</strong> Toàn bộ người chơi đã hoàn thành lượt di chuyển!`);
-    addGameLog(`🎰 <strong>[VÒNG QUAY MINIGAME]</strong> Đang chọn 1 trong 9 Minigame để tranh thứ tự lượt đi vòng sau...`);
+    addGameLog(`🎰 <strong>[VÒNG QUAY MINIGAME]</strong> Cả phòng sẽ cùng chơi <strong>${chosenGame.name}</strong>!`);
 
     // 2. Chạy hiệu ứng vòng quay Roulette
     showMinigameRoulette(chosenGame, async () => {
@@ -3388,7 +3421,8 @@ async function triggerRoundMinigamePhase() {
             onRoundMinigameCompleted(chosenGame, result);
         } catch (err) {
             console.error('[Minigame] Lỗi khởi chạy:', err);
-            onRoundMinigameCompleted(chosenGame, { win: true, score: 100 });
+            isMinigameSessionActive = false;
+            showBanner('⚠️ Không tải được minigame. Vui lòng kiểm tra kết nối rồi tải lại trang.');
         }
     });
 }
@@ -3661,7 +3695,7 @@ function advanceToNextRoundAfterMinigame() {
     if (gameState.phase === 'GAME_OVER') return;
 
     // Nếu đang kết nối ESP32 WebSocket, gửi kết quả và thứ tự lượt đi mới lên server
-    if (socket && socket.readyState === WebSocket.OPEN) {
+    if (socket && socket.readyState === WebSocket.OPEN && isHost) {
         const rawOrder = gameState.turnOrder.map(pid => parseInt(pid.replace('player_', ''), 10) - 1);
         const rawScores = {};
         gameState.players.forEach(p => {
@@ -3689,7 +3723,9 @@ function advanceToNextRoundAfterMinigame() {
 
     gameState.activePlayerId = gameState.turnOrder[0];
     gameState.phase = 'WAITING_ROLL';
+    gameState.minigameId = null;
     isMinigameSessionActive = false;
+    minigameSelectionPendingRound = null;
 
     renderTurnPills();
     updateProgressList();
