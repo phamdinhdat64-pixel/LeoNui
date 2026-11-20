@@ -343,8 +343,10 @@ bool GameCore::rollDice(std::uint8_t explicitRoll, std::uint32_t now) {
   p.position = specialTarget;
   phase_ = GamePhase::Moving;
 
-  // Thời gian hoạt ảnh: 1.6s bước đi thông thường + (0.5s dừng + 1.0s trượt nếu trúng lối tắt/trượt dốc)
-  moveEndTime_ = now + (hasSpecial ? 3100 : 1600);
+  const std::uint32_t stepCount = landPos - initialPos;
+  const std::uint32_t rollAndMoveAnimationMs =
+      3100 + (stepCount + 1) * 180 + 400 + (hasSpecial ? 1500 : 0);
+  moveEndTime_ = now + rollAndMoveAnimationMs;
 
   if (p.position >= kBoardLength) {
     postMovePhase_ = GamePhase::GameOver;
@@ -359,6 +361,16 @@ bool GameCore::rollDice(std::uint8_t explicitRoll, std::uint32_t now) {
     }
   }
 
+  return true;
+}
+
+bool GameCore::activateDoubleDice(std::uint8_t playerIdx) {
+  if (phase_ != GamePhase::WaitingRoll ||
+      activePlayerIndex() != static_cast<int>(playerIdx) ||
+      playerIdx >= players_.size()) {
+    return false;
+  }
+  players_[playerIdx].hasDoubleDice = true;
   return true;
 }
 

@@ -740,6 +740,10 @@ function updateTurnButtons(activePlayer) {
         dom.btnRollDice.disabled = true;
         dom.btnRollDice.classList.remove('pulse-active');
     }
+    if (gameState.isAnimatingMove) {
+        dom.btnRollDice.disabled = true;
+        dom.btnRollDice.classList.remove('pulse-active');
+    }
 }
 
 // ==========================================================================
@@ -937,6 +941,9 @@ function handleWsMessage(msg) {
         lastPong = Date.now();
     } else if (msg.t === 'game_state') {
         onGameStateReceived(msg);
+    } else if (msg.t === 'error') {
+        console.error(`[WebSocket] Server rejected action: ${msg.code}`);
+        showBanner(`⚠️ Lệnh không thực hiện được: ${msg.code}`);
     } else if (msg.t === 'dice_roll') {
         onDiceRollReceived(msg);
     } else if (msg.t === 'minigame_result') {
@@ -1616,6 +1623,7 @@ function onGameStateReceived(msg) {
                     visualPos: typeof pData.pos === 'number' ? pData.pos : 0,
                     isBot: Boolean(pData.isBot),
                     connected: Boolean(pData.conn),
+                    hasDoubleBuff: Boolean(pData.doubleDice),
                     stats: { totalRolls: pData.rolls || 0 },
                     minigameScore: typeof pData.score === 'number' ? pData.score : 0,
                     totalMinigameScore: typeof pData.totalScore === 'number' ? pData.totalScore : 0,
@@ -1633,6 +1641,7 @@ function onGameStateReceived(msg) {
                 }
                 p.isBot = Boolean(pData.isBot);
                 p.connected = Boolean(pData.conn);
+                p.hasDoubleBuff = Boolean(pData.doubleDice);
                 if (typeof pData.rolls === 'number') p.stats.totalRolls = pData.rolls;
                 if (typeof pData.score === 'number') p.minigameScore = pData.score;
                 if (typeof pData.totalScore === 'number') p.totalMinigameScore = pData.totalScore;
@@ -1795,6 +1804,7 @@ function onDiceRollReceived(msg) {
 
     initAudio();
     gameState.phase = 'MOVING';
+    gameState.isAnimatingMove = true;
     dom.btnRollDice.disabled = true;
 
     // Tự động zoom lớn và định vị camera vào đúng vị trí của người chơi khi bắt đầu tung xúc xắc
@@ -1818,6 +1828,12 @@ function onDiceRollReceived(msg) {
     }
 
     dom.diceOverlay.classList.remove('hidden');
+    dom.diceOverlay.style.transition = '';
+    dom.diceOverlay.style.opacity = '';
+    if (dom.diceScene) {
+        dom.diceScene.style.transition = '';
+        dom.diceScene.style.opacity = '';
+    }
     animate3DDiceRoll(msg.roll, () => {
         AudioSFX.playCorrect();
         if (dom.diceActionTitle) {
@@ -1835,19 +1851,28 @@ function onDiceRollReceived(msg) {
         }
 
         setTimeout(() => {
-            dom.diceOverlay.style.transition = 'opacity 0.22s ease';
-            dom.diceOverlay.style.opacity = '0';
-
+            if (dom.diceScene) {
+                dom.diceScene.style.transition = 'opacity 0.22s ease';
+                dom.diceScene.style.opacity = '0';
+            }
             setTimeout(() => {
-                dom.diceOverlay.classList.add('hidden');
-                dom.diceOverlay.style.opacity = '';
+                dom.diceOverlay.style.transition = 'opacity 0.22s ease';
+                dom.diceOverlay.style.opacity = '0';
 
-                addGameLog(msg.isDouble
-                    ? `🎲⚡ <strong>[${player.name}]</strong> Tung được <strong>${msg.roll} chấm</strong> (${DICE_FACES[msg.roll - 1]}). Kích hoạt Bùa X2 ➔ Bước <strong>+${msg.effectiveSteps} ô</strong> từ ${msg.from} ➔ <strong>ô ${msg.to}</strong>.`
-                    : `🎲 <strong>[${player.name}]</strong> Tung được <strong>${msg.roll} chấm</strong> (${DICE_FACES[msg.roll - 1]}). Bước từ ô ${msg.from} ➔ <strong>ô ${msg.to}</strong>.`);
+                setTimeout(() => {
+                    dom.diceOverlay.classList.add('hidden');
+                    dom.diceOverlay.style.opacity = '';
+                    if (dom.diceScene) {
+                        dom.diceScene.style.transition = '';
+                        dom.diceScene.style.opacity = '';
+                    }
 
-                // 1. Bước đi từng ô bình thường đến ô dừng lại msg.to
-                animateStepMovement(player, msg.to, () => {
+                    addGameLog(msg.isDouble
+                        ? `🎲⚡ <strong>[${player.name}]</strong> Tung được <strong>${msg.roll} chấm</strong> (${DICE_FACES[msg.roll - 1]}). Kích hoạt Bùa X2 ➔ Bước <strong>+${msg.effectiveSteps} ô</strong> từ ${msg.from} ➔ <strong>ô ${msg.to}</strong>.`
+                        : `🎲 <strong>[${player.name}]</strong> Tung được <strong>${msg.roll} chấm</strong> (${DICE_FACES[msg.roll - 1]}). Bước từ ô ${msg.from} ➔ <strong>ô ${msg.to}</strong>.`);
+
+                    // Begin movement only after the die and its result overlay have disappeared.
+                    animateStepMovement(player, msg.to, () => {
                     player.position = msg.to;
                     player.visualPos = msg.to;
                     dom.activePlayerPos.textContent = `${player.position} / ${BOARD_LENGTH}`;
@@ -1902,8 +1927,9 @@ function onDiceRollReceived(msg) {
                             }, 400);
                         }
                     }
-                });
-            }, 220);
+                    });
+                }, 220);
+            }, 240);
         }, 800);
     });
 }
@@ -3309,6 +3335,10 @@ function onPlayerMovementFinished(player) {
     if (socket && socket.readyState === WebSocket.OPEN) {
         if (gameState.phase === 'MINIGAME') {
             setTimeout(() => { handleRoundMinigamePhase(); }, 350);
+        } else if (gameState.phase === 'WAITING_ROLL') {
+            const activeId = gameState.turnOrder[gameState.currentTurnIndex];
+            const activePlayer = gameState.players.find(p => p.id === activeId);
+            if (activePlayer) updateTurnButtons(activePlayer);
         }
         return;
     }
@@ -4298,6 +4328,9 @@ function executeItemEffect(player, itemId, targetId) {
         renderPlayerInventory();
     } else if (itemId === 'double_dice') {
         player.hasDoubleBuff = true;
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            sendWs({ t: 'activate_double_dice' });
+        }
         AudioSFX.playBuffSFX();
         showBanner(`⚡ ${player.name.toUpperCase()} KÍCH HOẠT X2 BƯỚC ĐI!`);
         addGameLog(`⚡ <strong>[BÙA NHÂN ĐÔI]</strong> <strong>${player.name}</strong> kích hoạt Bùa X2! Số bước di chuyển ở lượt tung này sẽ được nhân đôi!`);

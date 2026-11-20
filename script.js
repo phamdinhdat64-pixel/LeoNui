@@ -535,6 +535,10 @@ function updateTurnButtons(activePlayer) {
         dom.btnRollDice.disabled = true;
         dom.btnRollDice.classList.remove('pulse-active');
     }
+    if (gameState.isAnimatingMove) {
+        dom.btnRollDice.disabled = true;
+        dom.btnRollDice.classList.remove('pulse-active');
+    }
 }
 
 // ==========================================================================
@@ -1426,6 +1430,7 @@ function onDiceRollReceived(msg) {
 
     initAudio();
     gameState.phase = 'MOVING';
+    gameState.isAnimatingMove = true;
     dom.btnRollDice.disabled = true;
 
     // Tự động zoom lớn và định vị camera vào đúng vị trí của người chơi khi bắt đầu tung xúc xắc
@@ -1449,6 +1454,12 @@ function onDiceRollReceived(msg) {
     }
 
     dom.diceOverlay.classList.remove('hidden');
+    dom.diceOverlay.style.transition = '';
+    dom.diceOverlay.style.opacity = '';
+    if (dom.diceScene) {
+        dom.diceScene.style.transition = '';
+        dom.diceScene.style.opacity = '';
+    }
     animate3DDiceRoll(msg.roll, () => {
         AudioSFX.playCorrect();
         if (dom.diceActionTitle) {
@@ -1462,17 +1473,27 @@ function onDiceRollReceived(msg) {
         }
 
         setTimeout(() => {
-            dom.diceOverlay.style.transition = 'opacity 0.22s ease';
-            dom.diceOverlay.style.opacity = '0';
+            if (dom.diceScene) {
+                dom.diceScene.style.transition = 'opacity 0.22s ease';
+                dom.diceScene.style.opacity = '0';
+            }
 
             setTimeout(() => {
-                dom.diceOverlay.classList.add('hidden');
-                dom.diceOverlay.style.opacity = '';
+                dom.diceOverlay.style.transition = 'opacity 0.22s ease';
+                dom.diceOverlay.style.opacity = '0';
 
-                addGameLog(`🎲 <strong>[${player.name}]</strong> Tung được <strong>${msg.roll} chấm</strong> (${DICE_FACES[msg.roll - 1]}). Bước từ ô ${msg.from} ➔ <strong>ô ${msg.to}</strong>.`);
+                setTimeout(() => {
+                    dom.diceOverlay.classList.add('hidden');
+                    dom.diceOverlay.style.opacity = '';
+                    if (dom.diceScene) {
+                        dom.diceScene.style.transition = '';
+                        dom.diceScene.style.opacity = '';
+                    }
 
-                // 1. Bước đi từng ô bình thường đến ô dừng lại msg.to
-                animateStepMovement(player, msg.to, () => {
+                    addGameLog(`🎲 <strong>[${player.name}]</strong> Tung được <strong>${msg.roll} chấm</strong> (${DICE_FACES[msg.roll - 1]}). Bước từ ô ${msg.from} ➔ <strong>ô ${msg.to}</strong>.`);
+
+                    // Begin movement only after the die and its result overlay have disappeared.
+                    animateStepMovement(player, msg.to, () => {
                     player.position = msg.to;
                     player.visualPos = msg.to;
                     dom.activePlayerPos.textContent = `${player.position} / ${BOARD_LENGTH}`;
@@ -1508,6 +1529,13 @@ function onDiceRollReceived(msg) {
                                 } else {
                                     setTimeout(() => {
                                         gameState.isAnimatingMove = false;
+                                        const activePlayer = gameState.players.find(p =>
+                                            p.id === gameState.turnOrder[gameState.currentTurnIndex]
+                                        );
+                                        if (gameState.phase === 'WAITING_ROLL' &&
+                                            activePlayer && activePlayer.id !== player.id) {
+                                            updateTurnButtons(activePlayer);
+                                        }
                                         checkAndTriggerMinigameForActivePlayer(player);
                                     }, 400);
                                 }
@@ -1519,12 +1547,20 @@ function onDiceRollReceived(msg) {
                         } else {
                             setTimeout(() => {
                                 gameState.isAnimatingMove = false;
+                                const activePlayer = gameState.players.find(p =>
+                                    p.id === gameState.turnOrder[gameState.currentTurnIndex]
+                                );
+                                if (gameState.phase === 'WAITING_ROLL' &&
+                                    activePlayer && activePlayer.id !== player.id) {
+                                    updateTurnButtons(activePlayer);
+                                }
                                 checkAndTriggerMinigameForActivePlayer(player);
                             }, 400);
                         }
                     }
-                });
-            }, 220);
+                    });
+                }, 220);
+            }, 240);
         }, 800);
     });
 }
@@ -2496,6 +2532,24 @@ function initGame() {
             script: 'minigames/game-6/game-6.js',
             style: 'minigames/game-6/game-6.css'
         });
+        window.MinigameManager.register('game-7', {
+            title: 'ĐUA THUYỀN RỒNG',
+            description: 'Bấm đúng nhịp trống khi vòng tròn chạm vạch vàng để chèo thuyền vượt sóng!',
+            script: 'minigames/game-7/game-7.js',
+            style: 'minigames/game-7/game-7.css'
+        });
+        window.MinigameManager.register('game-8', {
+            title: 'CHIA KHO BÁU',
+            description: 'Chọn rương bí mật; chọn trùng sẽ chia phần thưởng!',
+            script: 'minigames/game-8/game-8.js',
+            style: 'minigames/game-8/game-8.css'
+        });
+        window.MinigameManager.register('game-9', {
+            title: 'TRÍ NHỚ SIÊU PHÀM',
+            description: 'Ghi nhớ và gõ lại chuỗi nốt nhạc piano theo chú khỉ!',
+            script: 'minigames/game-9/game-9.js',
+            style: 'minigames/game-9/game-9.css'
+        });
     }
 
     startBoardAnimationLoop();
@@ -2507,23 +2561,21 @@ function initGame() {
 let isMinigameSessionActive = false;
 
 function getCurrentMinigameType() {
-    // Luân phiên 6 mini-game theo vòng:
+    // Luân phiên 9 mini-game theo vòng:
     // Vòng 1, 7, 13...: Mini-game 1 (Đua Sức Bền)
     // Vòng 2, 8, 14...: Mini-game 2 (Phản Xạ Né Khỉ)
     // Vòng 3, 9, 15...: Mini-game 3 (Căn Lực Gió)
     // Vòng 4, 10, 16...: Mini-game 4 (Đếm Thời Gian Trong Sương Mù)
     // Vòng 5, 11, 17...: Mini-game 5 (Săn Ảnh Voọc Chà Vá)
     // Vòng 6, 12, 18...: Mini-game 6 (Giữ Thăng Bằng Qua Cầu Treo)
-    const mIndex = (gameState.currentRound - 1) % 6;
-    if (mIndex === 0) return 'game-1';
-    if (mIndex === 1) return 'game-2';
-    if (mIndex === 2) return 'game-3';
-    if (mIndex === 3) return 'game-4';
-    if (mIndex === 4) return 'game-5';
-    return 'game-6';
+    const mIndex = (gameState.currentRound - 1) % 9;
+    return `game-${mIndex + 1}`;
 }
 
 function getMinigameTitle(gameType) {
+    if (gameType === 'game-9') return 'TRÍ NHỚ SIÊU PHÀM';
+    if (gameType === 'game-8') return 'CHIA KHO BÁU';
+    if (gameType === 'game-7') return 'ĐUA THUYỀN RỒNG';
     if (gameType === 'game-6') return 'THĂNG BẰNG ĐI TRÊN DÂY';
     if (gameType === 'game-5') return 'SĂN ẢNH VOỌC CHÀ VÁ';
     if (gameType === 'game-4') return 'ĐẾM THỜI GIAN TRONG SƯƠNG MÙ';
@@ -2993,7 +3045,7 @@ async function triggerMinigame(gameType = 'game-1', targetPlayer = null) {
     addGameLog(`🎮 <strong>[THỬ THÁCH MINIGAME]</strong> <strong>${player ? player.name : 'Người chơi'}</strong> bắt đầu thử thách tính điểm!`);
 
     try {
-        const launchOpts = { player };
+        const launchOpts = { player, allPlayers: gameState.players };
         if (gameType === 'game-4') {
             launchOpts.targetSec = getOrGenerateFogTargetForRound();
         }

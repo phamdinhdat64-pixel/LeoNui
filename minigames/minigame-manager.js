@@ -150,6 +150,14 @@
                         if (entry.style) await loadCss(entry.style);
                         if (entry.script) await loadScript(entry.script);
                     }
+                    const loadedEntry = _registry.get(gameType);
+                    if (loadedEntry) {
+                        entry = {
+                            ...loadedEntry,
+                            title: entry?.title || loadedEntry.title,
+                            description: entry?.description || loadedEntry.description
+                        };
+                    }
 
                     if (!entry) {
                         throw new Error(`[MinigameManager] Không tìm thấy mini-game: "${gameType}".`);
@@ -353,4 +361,3 @@
 
     return MinigameManager;
 }));
-

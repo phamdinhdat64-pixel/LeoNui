@@ -65,6 +65,7 @@ class GameCore {
   bool startGame(std::uint8_t count, const std::vector<bool>& botFlags, const std::vector<std::string>& names, std::uint32_t now = 0,
                  const std::vector<std::string>& avatars = {}, const std::vector<std::string>& colors = {});
   bool rollDice(std::uint8_t explicitRoll = 0, std::uint32_t now = 0);
+  bool activateDoubleDice(std::uint8_t playerIdx);
   void nextTurn(std::uint32_t now = 0);
 
   // Cập nhật trạng thái theo thời gian (hoạt ảnh chuyển động, bot)

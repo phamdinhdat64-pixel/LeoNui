@@ -176,6 +176,7 @@ void sendGameState(std::uint32_t clientId) {
     obj["rolls"] = p.totalRolls;
     obj["score"] = p.minigameScore;
     obj["totalScore"] = p.totalMinigameScore;
+    obj["doubleDice"] = p.hasDoubleDice;
     obj["isYou"] = (p.connected && p.clientId == clientId);
   }
 
@@ -431,7 +432,9 @@ void processMessage(const SocketEvent& event) {
 
     std::uint8_t roll = static_cast<std::uint8_t>((esp_random() % 6) + 1);
     std::uint8_t initialPos = players[activeIdx].position;
-    std::uint8_t landPos = std::min<std::uint8_t>(50, initialPos + roll);
+    const bool isDouble = players[activeIdx].hasDoubleDice;
+    const std::uint8_t effectiveSteps = isDouble ? roll * 2 : roll;
+    std::uint8_t landPos = std::min<std::uint8_t>(50, initialPos + effectiveSteps);
     std::uint8_t specialTarget = GameCore::getSpecialPathTarget(landPos);
 
     game.rollDice(roll, millis());
@@ -441,12 +444,25 @@ void processMessage(const SocketEvent& event) {
     actionDoc["t"] = "dice_roll";
     actionDoc["player"] = activeIdx;
     actionDoc["roll"] = roll;
+    actionDoc["effectiveSteps"] = effectiveSteps;
+    actionDoc["isDouble"] = isDouble;
     actionDoc["from"] = initialPos;
     actionDoc["to"] = landPos;
     actionDoc["special"] = (specialTarget != landPos) ? specialTarget : 0;
     actionDoc["finalPos"] = finalPos;
     broadcastAction(actionDoc);
 
+    broadcastGameState();
+    return;
+  }
+
+  if (type == "activate_double_dice") {
+    const int playerIdx = game.findPlayerByClient(event.clientId);
+    if (playerIdx < 0 ||
+        !game.activateDoubleDice(static_cast<std::uint8_t>(playerIdx))) {
+      sendError(event.clientId, "CANNOT_USE_ITEM");
+      return;
+    }
     broadcastGameState();
     return;
   }
