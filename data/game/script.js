@@ -329,7 +329,7 @@ let gameState = {
 };
 
 // Quyền hạn và danh tính mạng
-let isHost = true;
+let isHost = false;
 let myPlayerId = null;
 let currentHostIp = '';
 let socket = null;
@@ -823,6 +823,18 @@ function sendWs(data) {
 }
 
 function updateRoleUI() {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        if (dom.roleBadge) dom.roleBadge.classList.add('player');
+        if (dom.roleIcon) dom.roleIcon.textContent = '⏳';
+        if (dom.roleBadgeText) dom.roleBadgeText.textContent = 'KẾT NỐI...';
+        if (dom.lobbyRoleBadge) dom.lobbyRoleBadge.textContent = '⏳ ĐANG KẾT NỐI MẠNG ESP32...';
+        if (dom.lobbyModalDesc) dom.lobbyModalDesc.textContent = 'Đang đồng bộ thông tin phòng chơi từ ESP32...';
+        if (dom.hostSetupView) dom.hostSetupView.classList.add('hidden');
+        if (dom.playerWaitingView) dom.playerWaitingView.classList.remove('hidden');
+        if (dom.btnRestart) dom.btnRestart.classList.add('hidden');
+        return;
+    }
+
     if (isHost) {
         dom.roleBadge.classList.remove('player');
         dom.roleIcon.textContent = '👑';
@@ -834,7 +846,7 @@ function updateRoleUI() {
         dom.btnRestart.classList.remove('hidden');
 
         dom.settingsRoleText.textContent = 'Host (Điều hành & Quan sát)';
-        dom.settingsHostIp.textContent = currentHostIp || '192.168.4.2';
+        dom.settingsHostIp.textContent = currentHostIp || '192.168.4.1';
         dom.hostIpBox.classList.remove('hidden');
         dom.claimHostBox.classList.add('hidden');
     } else {
@@ -843,7 +855,7 @@ function updateRoleUI() {
         const myP = gameState.players.find(p => p.id === myPlayerId);
         dom.roleBadgeText.textContent = myP ? `BẠN: ${myP.name}` : 'NGƯỜI CHƠI';
         dom.lobbyRoleBadge.textContent = '📱 PHÒNG CHỜ NGƯỜI CHƠI';
-        dom.lobbyModalDesc.textContent = 'Bạn đang tham gia ván đấu trên mạng ESP32. Hãy chuẩn bị tung xúc xắc khi đến lượt!';
+        dom.lobbyModalDesc.textContent = 'Bạn đang tham gia ván đấu trên mạng ESP32. Hãy chọn linh thú, đổi tên của bạn và chờ Host bắt đầu!';
         dom.hostSetupView.classList.add('hidden');
         dom.playerWaitingView.classList.remove('hidden');
         dom.btnRestart.classList.add('hidden');
@@ -851,6 +863,7 @@ function updateRoleUI() {
         dom.settingsRoleText.textContent = 'Người chơi (Guest)';
         dom.hostIpBox.classList.add('hidden');
         dom.claimHostBox.classList.remove('hidden');
+        renderGuestCharacterGrid();
     }
 }
 
@@ -1093,12 +1106,24 @@ function selectCharacter(char, slotIndex = null) {
             if (dom.myPlayerSlotName) {
                 dom.myPlayerSlotName.textContent = `${myP.name} (${char.icon})`;
             }
+            const chosenName = (dom.inputMyCustomName && dom.inputMyCustomName.value.trim()) || myP.name;
+            const myIdx = parseInt(myP.id.replace('player_', ''), 10) - 1;
             sendWs({
                 t: 'join_game',
-                name: (dom.inputMyCustomName && dom.inputMyCustomName.value.trim()) || myP.name,
+                name: chosenName,
                 avatar: char.icon,
                 color: char.color
             });
+            if (myIdx >= 0) {
+                sendWs({
+                    t: 'set_player_info',
+                    index: myIdx,
+                    name: chosenName,
+                    avatar: char.icon,
+                    color: char.color,
+                    isBot: false
+                });
+            }
             renderGuestCharacterGrid();
             renderTokens();
             showBanner(`ĐÃ CHỌN LINH THÚ: ${char.name.toUpperCase()} ${char.icon}`);
@@ -1159,9 +1184,14 @@ function renderSetupInputs(count) {
 
         let badgeOrBotHtml = '';
         if (isHostSlot) {
-            badgeOrBotHtml = `<span class="slot-badge-human host">👑 Bạn (Host)</span>`;
+            badgeOrBotHtml = isHost
+                ? `<span class="slot-badge-human host">👑 Bạn (Host)</span>`
+                : `<span class="slot-badge-human host">👑 Host</span>`;
         } else if (isConnectedHuman) {
-            badgeOrBotHtml = `<span class="slot-badge-human">📱 Đã vào</span>`;
+            const isMe = (p.id === myPlayerId);
+            badgeOrBotHtml = isMe
+                ? `<span class="slot-badge-human" style="background: rgba(34, 197, 94, 0.25); border-color: #22c55e; color: #4ade80;">⭐ Bạn</span>`
+                : `<span class="slot-badge-human">📱 Đã vào</span>`;
         } else {
             // Slot bổ sung do Host chọn nhiều hơn số người thật:
             // Hiển thị nút để Host chuyển đổi Bot AI hoặc Người chơi chung
@@ -1458,6 +1488,17 @@ dom.btnSaveMyName.addEventListener('click', () => {
             avatar: myP ? myP.avatarIcon : undefined,
             color: myP ? myP.color : undefined
         });
+        const myIdx = myP ? parseInt(myP.id.replace('player_', ''), 10) - 1 : -1;
+        if (myIdx >= 0) {
+            sendWs({
+                t: 'set_player_info',
+                index: myIdx,
+                name: val,
+                avatar: myP ? myP.avatarIcon : undefined,
+                color: myP ? myP.color : undefined,
+                isBot: false
+            });
+        }
         showBanner(`ĐÃ ĐỔI TÊN THÀNH: ${val.toUpperCase()}`);
     }
 });
@@ -1586,6 +1627,10 @@ function onGameStateReceived(msg) {
                 myPlayerId = pid;
             }
         });
+        if (isHost && !myPlayerId) {
+            myPlayerId = 'player_1';
+        }
+        updateRoleUI();
     }
 
     // LOẠI BỎ tất cả người chơi có id lớn hơn currentSelectedCount

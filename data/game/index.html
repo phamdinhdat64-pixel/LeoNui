@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Leo Đỉnh Bàn Cờ - Peak Climber</title>
-    <link rel="stylesheet" href="style.css?v=55">
-    <link rel="stylesheet" href="minigames/minigames.css?v=55">
+    <link rel="stylesheet" href="style.css?v=56">
+    <link rel="stylesheet" href="minigames/minigames.css?v=56">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -50,9 +50,9 @@
             </div>
 
             <div class="hud-right">
-                <div id="roleBadge" class="role-badge" title="Vai trò hiện tại của thiết bị này trong phòng">
-                    <span id="roleIcon">👑</span>
-                    <span id="roleBadgeText">HOST</span>
+                <div id="roleBadge" class="role-badge player" title="Vai trò hiện tại của thiết bị này trong phòng">
+                    <span id="roleIcon">⏳</span>
+                    <span id="roleBadgeText">KẾT NỐI...</span>
                 </div>
                 <button id="btnSettings" class="btn-icon" title="Cài đặt phòng & IP Host" aria-label="Settings">
                     <span class="icon">⚙️</span>
@@ -183,12 +183,12 @@
         <!-- 1. Lobby / Game Setup Modal -->
         <div id="setupModal" class="modal-overlay active">
             <div class="modal-card">
-                <div class="lobby-badge" id="lobbyRoleBadge">👑 PHÒNG HOST · QUAN SÁT & ĐIỀU HÀNH</div>
+                <div class="lobby-badge" id="lobbyRoleBadge">⏳ ĐANG KẾT NỐI MẠNG ESP32...</div>
                 <h1 class="modal-title">LEO ĐỈNH BÀN CỜ</h1>
-                <p class="modal-desc" id="lobbyModalDesc">Đua tiến độ 50 ô, vượt mốc trắc nghiệm trí tuệ và chinh phục đỉnh cao!</p>
+                <p class="modal-desc" id="lobbyModalDesc">Đang đồng bộ thông tin phòng chơi từ ESP32 BOARD GAME...</p>
 
                 <!-- HOST VIEW: Cài đặt và điều hành ván đấu -->
-                <div id="hostSetupView">
+                <div id="hostSetupView" class="hidden">
                     <div class="setup-section">
                         <label class="section-label">Số lượng người chơi:</label>
                         <div class="player-count-buttons" id="playerCountGroup">
@@ -211,7 +211,7 @@
                 </div>
 
                 <!-- PLAYER (GUEST) VIEW: Màn hình chờ của người chơi -->
-                <div id="playerWaitingView" class="hidden">
+                <div id="playerWaitingView">
                     <div class="player-waiting-card">
                         <div class="player-slot-info">
                             <span class="label">BẠN ĐANG Ở VỊ TRÍ:</span>
@@ -478,8 +478,8 @@
 
     </div>
 
-    <script src="minigames/minigame-manager.js?v=55"></script>
-    <script src="script.js?v=55"></script>
+    <script src="minigames/minigame-manager.js?v=56"></script>
+    <script src="script.js?v=56"></script>
 </body>
 
 </html>

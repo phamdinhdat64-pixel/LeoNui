@@ -154,7 +154,9 @@ bool GameCore::registerPlayer(const std::string& deviceId, std::uint32_t clientI
     if (!avatar.empty()) players_[existing].avatarIcon = avatar;
     if (!color.empty()) players_[existing].color = color;
     std::uint8_t connectedHumans = countConnectedHumans();
-    setPlayerCount(std::max<std::uint8_t>(2, connectedHumans));
+    if (playerCount_ < connectedHumans) {
+      setPlayerCount(connectedHumans);
+    }
     return true;
   }
 
@@ -169,7 +171,9 @@ bool GameCore::registerPlayer(const std::string& deviceId, std::uint32_t clientI
     if (!avatar.empty()) p.avatarIcon = avatar;
     if (!color.empty()) p.color = color;
     std::uint8_t connectedHumans = countConnectedHumans();
-    setPlayerCount(std::max<std::uint8_t>(2, connectedHumans));
+    if (playerCount_ < connectedHumans) {
+      setPlayerCount(connectedHumans);
+    }
     return true;
   }
 
@@ -185,10 +189,11 @@ bool GameCore::registerPlayer(const std::string& deviceId, std::uint32_t clientI
       if (!avatar.empty()) p.avatarIcon = avatar;
       if (!color.empty()) p.color = color;
 
-      // Khi thêm người chơi mới vào thì TỰ ĐỘNG CHUYỂN SANG ĐÚNG SỐ NGƯỜI ĐÃ VÀO:
+      // Khi thêm người chơi mới vào: mở rộng nếu số người kết nối thật vượt quá playerCount hiện tại
       std::uint8_t connectedHumans = countConnectedHumans();
-      std::uint8_t newCount = std::max<std::uint8_t>(2, connectedHumans);
-      setPlayerCount(newCount);
+      if (playerCount_ < connectedHumans) {
+        setPlayerCount(connectedHumans);
+      }
       return true;
     }
   }

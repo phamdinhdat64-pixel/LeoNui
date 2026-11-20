@@ -298,10 +298,18 @@ void processMessage(const SocketEvent& event) {
   }
 
   if (type == "set_player_info") {
-    if (!room.isHost(event.clientId) || game.phase() != GamePhase::Setup) {
+    if (game.phase() != GamePhase::Setup) {
       return;
     }
+    const bool isHost = room.isHost(event.clientId);
+    const int clientSlot = game.findPlayerByClient(event.clientId);
     std::uint8_t index = document["index"] | 0;
+
+    // Host được sửa mọi slot; Khách chỉ được sửa slot của chính mình
+    if (!isHost && clientSlot != static_cast<int>(index)) {
+      return;
+    }
+
     std::string playerName;
     std::string avatar;
     std::string color;
@@ -309,6 +317,8 @@ void processMessage(const SocketEvent& event) {
     jsonString(document, "avatar", 16, avatar);
     jsonString(document, "color", 16, color);
     bool isBot = document["isBot"] | false;
+    if (!isHost) isBot = false; // Khách không thể tự biến mình thành bot
+
     game.setPlayerInfo(index, playerName, avatar, color, isBot);
     broadcastGameState();
     return;
@@ -458,9 +468,13 @@ void processEvent(const SocketEvent& event) {
       break;
     case EventKind::Disconnect: {
       const bool wasJoined = room.byClient(event.clientId) != nullptr;
+      const std::uint32_t currentHostClient = room.host().clientId;
       room.disconnect(event.clientId);
       game.disconnectClient(event.clientId);
       if (wasJoined) {
+        if (room.host().online && room.host().clientId != 0 && room.host().clientId != currentHostClient) {
+          sendIdentity(room.host().clientId);
+        }
         broadcastState();
         broadcastGameState();
       }

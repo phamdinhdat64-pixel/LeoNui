@@ -49,12 +49,7 @@ bool ConnectionCore::validIpv4(const std::string& value) {
 }
 
 bool ConnectionCore::validClientIp(const std::string& value) {
-  if (!validIpv4(value) || value.compare(0, 10, "192.168.4.") != 0) {
-    return false;
-  }
-  const unsigned last = static_cast<unsigned>(
-      std::stoul(value.substr(10)));
-  return last >= 2 && last <= 254;
+  return validIpv4(value);
 }
 
 DeviceRecord* ConnectionCore::findByClient(std::uint32_t clientId) {
@@ -94,18 +89,28 @@ Result ConnectionCore::hello(const std::string& deviceId,
 
   DeviceRecord* device = findByDeviceId(deviceId);
   if (!device) {
-    if (devices_.size() >= kMaxDevices) return Result::Full;
-    devices_.push_back({deviceId, observedIp, clientId, nextOrder_++, now,
-                        true});
-    device = &devices_.back();
-  } else {
-    device->ip = observedIp;
-    device->clientId = clientId;
-    device->lastActivity = now;
-    device->online = true;
+    if (devices_.size() >= kMaxDevices) {
+      for (auto& d : devices_) {
+        if (!d.online) {
+          device = &d;
+          device->deviceId = deviceId;
+          device->order = nextOrder_++;
+          break;
+        }
+      }
+      if (!device) return Result::Full;
+    } else {
+      devices_.push_back({deviceId, observedIp, clientId, nextOrder_++, now,
+                          true});
+      device = &devices_.back();
+    }
   }
+  device->ip = observedIp;
+  device->clientId = clientId;
+  device->lastActivity = now;
+  device->online = true;
 
-  if (host_.deviceId.empty()) {
+  if (host_.deviceId.empty() || !host_.online) {
     host_ = {deviceId, observedIp, clientId, true};
   } else if (host_.deviceId == deviceId) {
     host_.ip = observedIp;
@@ -134,6 +139,12 @@ void ConnectionCore::disconnect(std::uint32_t clientId) {
       host_.deviceId == device->deviceId) {
     host_.online = false;
     host_.clientId = 0;
+    for (const auto& d : devices_) {
+      if (d.online && d.clientId != 0) {
+        host_ = {d.deviceId, d.ip, d.clientId, true};
+        break;
+      }
+    }
   }
 }
 
