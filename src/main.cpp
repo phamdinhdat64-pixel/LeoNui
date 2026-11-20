@@ -176,6 +176,7 @@ void sendGameState(std::uint32_t clientId) {
     obj["rolls"] = p.totalRolls;
     obj["score"] = p.minigameScore;
     obj["totalScore"] = p.totalMinigameScore;
+    obj["minigameSubmitted"] = p.minigameSubmitted;
     obj["doubleDice"] = p.hasDoubleDice;
     obj["isYou"] = (p.connected && p.clientId == clientId);
   }
@@ -199,6 +200,29 @@ void broadcastAction(JsonDocument& doc) {
       webSocket.text(device.clientId, output);
     }
   }
+}
+
+void broadcastDiceRoll(std::uint8_t playerIdx, std::uint8_t roll,
+                       std::uint8_t initialPos, bool isDouble) {
+  const auto& players = game.players();
+  if (playerIdx >= players.size()) return;
+
+  const std::uint8_t effectiveSteps = isDouble ? roll * 2 : roll;
+  const std::uint8_t landPos =
+      std::min<std::uint8_t>(GameCore::kBoardLength, initialPos + effectiveSteps);
+  const std::uint8_t specialTarget = GameCore::getSpecialPathTarget(landPos);
+
+  JsonDocument actionDoc;
+  actionDoc["t"] = "dice_roll";
+  actionDoc["player"] = playerIdx;
+  actionDoc["roll"] = roll;
+  actionDoc["effectiveSteps"] = effectiveSteps;
+  actionDoc["isDouble"] = isDouble;
+  actionDoc["from"] = initialPos;
+  actionDoc["to"] = landPos;
+  actionDoc["special"] = (specialTarget != landPos) ? specialTarget : 0;
+  actionDoc["finalPos"] = players[playerIdx].position;
+  broadcastAction(actionDoc);
 }
 
 bool jsonString(JsonDocument& document, const char* key,
@@ -251,11 +275,14 @@ void processMessage(const SocketEvent& event) {
     }
 
     const bool isHost = room.isHost(event.clientId);
-    // Cả máy Host và máy Khách đều là người chơi thật trong bàn cờ
-    game.updatePlayerClient(deviceId, event.clientId);
-    if (game.findPlayerByDeviceId(deviceId) < 0 && game.phase() == GamePhase::Setup) {
-      std::string defaultName = isHost ? "Người chơi 1 (Host)" : "";
-      game.registerPlayer(deviceId, event.clientId, defaultName, "", "", isHost);
+    if (isHost) {
+      game.removePlayerByDeviceId(deviceId);
+    } else {
+      game.updatePlayerClient(deviceId, event.clientId);
+      if (game.findPlayerByDeviceId(deviceId) < 0 &&
+          game.phase() == GamePhase::Setup) {
+        game.registerPlayer(deviceId, event.clientId, "");
+      }
     }
 
     sendIdentity(event.clientId);
@@ -266,6 +293,10 @@ void processMessage(const SocketEvent& event) {
   }
 
   if (type == "claim_host") {
+    if (game.phase() != GamePhase::Setup) {
+      sendError(event.clientId, "HOST_CLAIM_ONLY_SETUP");
+      return;
+    }
     std::string enteredIp;
     if (!jsonString(document, "hostIp", 15, enteredIp)) {
       sendError(event.clientId, "INVALID_MESSAGE");
@@ -279,16 +310,16 @@ void processMessage(const SocketEvent& event) {
     }
     room.touch(event.clientId, millis());
 
-    // Cập nhật người chơi nhận quyền Host
+    // The new Host becomes an observer; the previous Host joins as a player.
     const auto* newHostDev = room.byClient(event.clientId);
     if (newHostDev) {
-      game.registerPlayer(newHostDev->deviceId, event.clientId, "Host", "", "", true);
+      game.removePlayerByDeviceId(newHostDev->deviceId);
     }
 
     if (oldHostClientId != 0 && oldHostClientId != event.clientId) {
       sendIdentity(oldHostClientId);
       const auto* oldHostDev = room.byClient(oldHostClientId);
-      if (oldHostDev && game.phase() == GamePhase::Setup) {
+      if (oldHostDev) {
         game.registerPlayer(oldHostDev->deviceId, oldHostClientId, "");
       }
     }
@@ -307,9 +338,10 @@ void processMessage(const SocketEvent& event) {
     std::string color;
     jsonString(document, "color", 16, color);
     const auto* dev = room.byClient(event.clientId);
-    if (dev && game.phase() == GamePhase::Setup) {
-      const bool isHost = room.isHost(event.clientId);
-      game.registerPlayer(dev->deviceId, event.clientId, playerName, avatar, color, isHost);
+    if (dev && !room.isHost(event.clientId) &&
+        game.phase() == GamePhase::Setup) {
+      game.registerPlayer(dev->deviceId, event.clientId, playerName, avatar,
+                          color);
       broadcastGameState();
     }
     return;
@@ -381,6 +413,14 @@ void processMessage(const SocketEvent& event) {
         colors.push_back(c ? c : "");
       }
     }
+    const auto& players = game.players();
+    for (std::size_t i = 0; i < count && i < players.size(); ++i) {
+      const bool configuredAsBot = i >= botFlags.size() || botFlags[i];
+      if (!configuredAsBot && !players[i].connected) {
+        sendError(event.clientId, "PLAYER_NOT_CONNECTED");
+        return;
+      }
+    }
     selectedMinigame.clear();
     selectedMinigameRound = 0;
     game.startGame(count, botFlags, names, millis(), avatars, colors);
@@ -421,9 +461,6 @@ void processMessage(const SocketEvent& event) {
       if (players[activeIdx].connected && players[activeIdx].clientId == event.clientId) {
         isAllowed = true;
       }
-      if (players[activeIdx].isBot && room.isHost(event.clientId)) {
-        isAllowed = true;
-      }
     }
     if (!isAllowed || game.phase() != GamePhase::WaitingRoll) {
       sendError(event.clientId, "NOT_YOUR_TURN");
@@ -433,25 +470,62 @@ void processMessage(const SocketEvent& event) {
     std::uint8_t roll = static_cast<std::uint8_t>((esp_random() % 6) + 1);
     std::uint8_t initialPos = players[activeIdx].position;
     const bool isDouble = players[activeIdx].hasDoubleDice;
-    const std::uint8_t effectiveSteps = isDouble ? roll * 2 : roll;
-    std::uint8_t landPos = std::min<std::uint8_t>(50, initialPos + effectiveSteps);
-    std::uint8_t specialTarget = GameCore::getSpecialPathTarget(landPos);
-
     game.rollDice(roll, millis());
-    std::uint8_t finalPos = players[activeIdx].position;
+    broadcastDiceRoll(static_cast<std::uint8_t>(activeIdx), roll, initialPos,
+                      isDouble);
+
+    broadcastGameState();
+    return;
+  }
+
+  if (type == "use_item") {
+    static const char* const itemIds[] = {
+        "rocket", "bomber", "double_dice", "hook", "teleport"};
+    std::string itemId;
+    if (!jsonString(document, "item", 16, itemId)) {
+      sendError(event.clientId, "INVALID_ITEM");
+      return;
+    }
+    bool validItem = false;
+    for (const char* id : itemIds) {
+      if (itemId == id) {
+        validItem = true;
+        break;
+      }
+    }
+
+    const int playerIdx = game.findPlayerByClient(event.clientId);
+    const int targetIdx = document["target"] | -1;
+    if (!validItem || game.phase() != GamePhase::WaitingRoll ||
+        playerIdx < 0 || game.activePlayerIndex() != playerIdx ||
+        (targetIdx >= static_cast<int>(game.playerCount())) ||
+        (targetIdx < -1) ||
+        (targetIdx == playerIdx) ||
+        ((itemId == "bomber" || itemId == "hook") && targetIdx < 0)) {
+      sendError(event.clientId, "CANNOT_USE_ITEM");
+      return;
+    }
 
     JsonDocument actionDoc;
-    actionDoc["t"] = "dice_roll";
-    actionDoc["player"] = activeIdx;
-    actionDoc["roll"] = roll;
-    actionDoc["effectiveSteps"] = effectiveSteps;
-    actionDoc["isDouble"] = isDouble;
-    actionDoc["from"] = initialPos;
-    actionDoc["to"] = landPos;
-    actionDoc["special"] = (specialTarget != landPos) ? specialTarget : 0;
-    actionDoc["finalPos"] = finalPos;
+    actionDoc["t"] = "item_used";
+    actionDoc["player"] = playerIdx;
+    actionDoc["item"] = itemId.c_str();
+    actionDoc["target"] = targetIdx;
     broadcastAction(actionDoc);
+    return;
+  }
 
+  if (type == "minigame_score") {
+    const int playerIdx = game.findPlayerByClient(event.clientId);
+    if (!document["score"].is<std::uint16_t>() || playerIdx < 0) {
+      sendError(event.clientId, "CANNOT_SUBMIT_MINIGAME_SCORE");
+      return;
+    }
+    const std::uint16_t score = document["score"].as<std::uint16_t>();
+    if (!game.submitMinigameScore(static_cast<std::uint8_t>(playerIdx), score)) {
+      sendError(event.clientId, "CANNOT_SUBMIT_MINIGAME_SCORE");
+      return;
+    }
     broadcastGameState();
     return;
   }
@@ -471,6 +545,13 @@ void processMessage(const SocketEvent& event) {
     if (!room.isHost(event.clientId) ||
         game.phase() != GamePhase::Minigame) {
       return;
+    }
+    for (std::size_t i = 0; i < game.playerCount(); ++i) {
+      const auto& player = game.players()[i];
+      if (player.connected && !player.isBot && !player.minigameSubmitted) {
+        sendError(event.clientId, "MINIGAME_PLAYERS_PENDING");
+        return;
+      }
     }
 
     // Cập nhật điểm các người chơi nếu client gửi lên
@@ -538,6 +619,10 @@ void processEvent(const SocketEvent& event) {
       game.disconnectClient(event.clientId);
       if (wasJoined) {
         if (room.host().online && room.host().clientId != 0 && room.host().clientId != currentHostClient) {
+          const auto* promotedHost = room.byClient(room.host().clientId);
+          if (promotedHost) {
+            game.removePlayerByDeviceId(promotedHost->deviceId);
+          }
           sendIdentity(room.host().clientId);
         }
         broadcastState();
@@ -656,7 +741,22 @@ void loop() {
   }
 
   const std::uint32_t now = millis();
+  const bool botRollPending =
+      game.phase() == GamePhase::WaitingRoll && game.isBotTurn();
+  const int botPlayerIdx = botRollPending ? game.activePlayerIndex() : -1;
+  std::uint8_t botInitialPos = 0;
+  bool botHadDouble = false;
+  if (botPlayerIdx >= 0 &&
+      botPlayerIdx < static_cast<int>(game.players().size())) {
+    const auto& bot = game.players()[botPlayerIdx];
+    botInitialPos = bot.position;
+    botHadDouble = bot.hasDoubleDice;
+  }
   if (game.update(now)) {
+    if (botRollPending && game.phase() == GamePhase::Moving && botPlayerIdx >= 0) {
+      broadcastDiceRoll(static_cast<std::uint8_t>(botPlayerIdx), game.lastRoll(),
+                        botInitialPos, botHadDouble);
+    }
     broadcastGameState();
   }
 

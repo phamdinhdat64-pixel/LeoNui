@@ -309,12 +309,12 @@ const CHARACTER_ROSTER = [
 ];
 
 const DEFAULT_PRESETS = CHARACTER_ROSTER.map((c, idx) => ({
-    name: idx === 0 ? 'Người chơi 1 (Host)' : `Người chơi ${idx + 1}`,
+    name: `Người chơi ${idx + 1}`,
     botDefaultName: c.name,
     color: c.color,
     avatarIcon: c.icon,
     charId: c.id,
-    isBot: false
+    isBot: true
 }));
 
 let gameState = {
@@ -679,7 +679,8 @@ function playIntroOverviewSequence(activePlayer, onComplete) {
 
 function updateTurnButtons(activePlayer) {
     if (!activePlayer) return;
-    const isMyTurn = (activePlayer.id === myPlayerId);
+    const isOnlineHost = isHost && socket && socket.readyState === WebSocket.OPEN;
+    const isMyTurn = !isOnlineHost && activePlayer.id === myPlayerId;
     const isBotTurn = activePlayer.isBot;
 
     // Cập nhật giao diện túi đồ của người chơi đang tới lượt
@@ -693,6 +694,11 @@ function updateTurnButtons(activePlayer) {
                 dom.btnRollDice.classList.add('pulse-active');
                 dom.btnRollDice.querySelector('.roll-text').textContent = '🎲✨ TUNG XÚC XẮC (X2 BƯỚC ĐI!)';
                 dom.turnStatusLabel.textContent = '⚡ ĐANG KÍCH HOẠT X2 BƯỚC ĐI!';
+            } else if (isOnlineHost) {
+                dom.btnRollDice.classList.remove('pulse-active');
+                dom.btnRollDice.disabled = true;
+                dom.btnRollDice.querySelector('.roll-text').textContent = `👁 ĐANG QUAN SÁT ${activePlayer.name.toUpperCase()} (X2)`;
+                dom.turnStatusLabel.textContent = `QUAN SÁT LƯỢT CỦA: ${activePlayer.name.toUpperCase()} (X2 BƯỚC)`;
             } else if (isHost) {
                 dom.btnRollDice.classList.remove('pulse-active');
                 dom.btnRollDice.disabled = !isBotTurn;
@@ -713,6 +719,11 @@ function updateTurnButtons(activePlayer) {
                 dom.btnRollDice.classList.add('pulse-active');
                 dom.btnRollDice.querySelector('.roll-text').textContent = '🎲 ĐẾN LƯỢT BẠN! TUNG XÚC XẮC';
                 dom.turnStatusLabel.textContent = '🌟 LƯỢT CỦA BẠN!';
+            } else if (isOnlineHost) {
+                dom.btnRollDice.classList.remove('pulse-active');
+                dom.btnRollDice.disabled = true;
+                dom.btnRollDice.querySelector('.roll-text').textContent = `👁 ĐANG QUAN SÁT ${activePlayer.name.toUpperCase()}`;
+                dom.turnStatusLabel.textContent = `QUAN SÁT LƯỢT CỦA: ${activePlayer.name.toUpperCase()}`;
             } else if (isHost) {
                 dom.btnRollDice.classList.remove('pulse-active');
                 dom.btnRollDice.disabled = !isBotTurn;
@@ -915,6 +926,7 @@ function handleWsMessage(msg) {
         sendWs({ t: 'hello', deviceId: getDeviceId(), bootId: currentBootId });
     } else if (msg.t === 'identity') {
         isHost = (msg.role === 'HOST' && msg.host === true);
+        if (isHost) myPlayerId = null;
         if (msg.hostIp) currentHostIp = msg.hostIp;
         updateRoleUI();
 
@@ -946,6 +958,8 @@ function handleWsMessage(msg) {
         showBanner(`⚠️ Lệnh không thực hiện được: ${msg.code}`);
     } else if (msg.t === 'dice_roll') {
         onDiceRollReceived(msg);
+    } else if (msg.t === 'item_used') {
+        showItemUsedNotification(msg);
     } else if (msg.t === 'minigame_result') {
         onMinigameResultReceived(msg);
     }
@@ -974,7 +988,7 @@ function syncPlayerCount(count) {
     // Cắt bớt nếu số lượng quân cờ đang nhiều hơn
     gameState.players = gameState.players.slice(0, currentSelectedCount);
     // Thêm vào nếu thiếu quân cờ
-    const connectedHumans = Math.max(1, gameState.players.filter(p => p.connected && !p.isBot).length);
+    const connectedHumans = gameState.players.filter(p => p.connected && !p.isBot).length;
     while (gameState.players.length < currentSelectedCount) {
         const i = gameState.players.length;
         const preset = DEFAULT_PRESETS[i] || DEFAULT_PRESETS[0];
@@ -1183,15 +1197,11 @@ function renderGuestCharacterGrid() {
 
 function renderSetupInputs(count) {
     dom.playerInputsContainer.innerHTML = '';
-    // Đếm số người thật đang kết nối (Host luôn là người thật ở slot 0)
-    const connectedHumans = Math.max(1, gameState.players.filter(p => p.connected && !p.isBot).length);
+    const connectedHumans = gameState.players.filter(p => p.connected && !p.isBot).length;
 
     for (let i = 0; i < count; i++) {
         const p = gameState.players[i] || DEFAULT_PRESETS[i] || DEFAULT_PRESETS[0];
-        const isHostSlot = (i === 0);
-        const isConnectedHuman = isHostSlot || (p.connected && !p.isBot);
-        // Chỉ hiển thị chọn chơi với bot khi máy host chọn chế độ số người chơi nhiều hơn người tham gia
-        const isExtraSlot = (i >= connectedHumans);
+        const isConnectedHuman = p.connected && !p.isBot;
 
         // Với các slot người thật, p.isBot luôn là false
         if (isConnectedHuman) {
@@ -1204,11 +1214,7 @@ function renderSetupInputs(count) {
         row.className = 'player-input-row';
 
         let badgeOrBotHtml = '';
-        if (isHostSlot) {
-            badgeOrBotHtml = isHost
-                ? `<span class="slot-badge-human host">👑 Bạn (Host)</span>`
-                : `<span class="slot-badge-human host">👑 Host</span>`;
-        } else if (isConnectedHuman) {
+        if (isConnectedHuman) {
             const isMe = (p.id === myPlayerId);
             badgeOrBotHtml = isMe
                 ? `<span class="slot-badge-human" style="background: rgba(34, 197, 94, 0.25); border-color: #22c55e; color: #4ade80;">⭐ Bạn</span>`
@@ -1291,7 +1297,7 @@ dom.playerCountGroup.querySelectorAll('.btn-select').forEach(btn => {
     btn.addEventListener('click', () => {
         if (socket && socket.readyState === WebSocket.OPEN && !isHost) return;
         const count = parseInt(btn.getAttribute('data-count'), 10);
-        const connectedHumans = Math.max(1, gameState.players.filter(p => p.connected && !p.isBot).length);
+        const connectedHumans = gameState.players.filter(p => p.connected && !p.isBot).length;
         if (count < connectedHumans) {
             showBanner(`⚠️ PHÒNG ĐÃ CÓ ${connectedHumans} NGƯỜI CHƠI THẬT!`);
             return;
@@ -1325,7 +1331,7 @@ function startGame(count) {
 
     // 3. Chỉ giữ đúng mảng players thực tế đang tham gia ván đấu
     gameState.players = gameState.players.slice(0, currentSelectedCount);
-    const connectedHumans = Math.max(1, gameState.players.filter(p => p.connected && !p.isBot).length);
+    const connectedHumans = gameState.players.filter(p => p.connected && !p.isBot).length;
 
     while (gameState.players.length < currentSelectedCount) {
         const i = gameState.players.length;
@@ -1471,8 +1477,7 @@ dom.btnStartGame.addEventListener('click', () => {
         const p = gameState.players[i] || DEFAULT_PRESETS[i];
         const finalName = (nameInput ? nameInput.value.trim() : '') || p.name;
         names.push(finalName);
-        // Slot 0 là Host (người thật). Các slot có người thật kết nối KHÔNG BAO GIỜ gán bot!
-        const isRealHuman = (i === 0) || (p.connected && !p.isBot);
+        const isRealHuman = p.connected && !p.isBot;
         botFlags.push(isRealHuman ? false : Boolean(p.isBot));
         avatars.push(p.avatarIcon || DEFAULT_PRESETS[i].avatarIcon);
         colors.push(p.color || DEFAULT_PRESETS[i].color);
@@ -1583,11 +1588,8 @@ function onGameStateReceived(msg) {
 
     if (Array.isArray(msg.order) && msg.order.length > 0) {
         gameState.turnOrder = msg.order
-            .map(idx => `player_${idx + 1}`)
-            .filter(pid => {
-                const idx = parseInt(pid.replace('player_', ''), 10);
-                return idx >= 1 && idx <= currentSelectedCount;
-            });
+            .filter(idx => Number.isInteger(idx) && idx >= 0 && idx < currentSelectedCount)
+            .map(idx => `player_${idx + 1}`);
     } else {
         gameState.turnOrder = [];
     }
@@ -1623,6 +1625,7 @@ function onGameStateReceived(msg) {
                     visualPos: typeof pData.pos === 'number' ? pData.pos : 0,
                     isBot: Boolean(pData.isBot),
                     connected: Boolean(pData.conn),
+                    minigameSubmitted: Boolean(pData.minigameSubmitted),
                     hasDoubleBuff: Boolean(pData.doubleDice),
                     stats: { totalRolls: pData.rolls || 0 },
                     minigameScore: typeof pData.score === 'number' ? pData.score : 0,
@@ -1641,6 +1644,7 @@ function onGameStateReceived(msg) {
                 }
                 p.isBot = Boolean(pData.isBot);
                 p.connected = Boolean(pData.conn);
+                p.minigameSubmitted = Boolean(pData.minigameSubmitted);
                 p.hasDoubleBuff = Boolean(pData.doubleDice);
                 if (typeof pData.rolls === 'number') p.stats.totalRolls = pData.rolls;
                 if (typeof pData.score === 'number') p.minigameScore = pData.score;
@@ -1654,9 +1658,7 @@ function onGameStateReceived(msg) {
                 myPlayerId = pid;
             }
         });
-        if (isHost && !myPlayerId) {
-            myPlayerId = 'player_1';
-        }
+        if (isHost) myPlayerId = null;
         updateRoleUI();
     }
 
@@ -1712,13 +1714,10 @@ function onGameStateReceived(msg) {
             gameState.players.filter(p => allowedPlayerIds.has(p.id)).forEach(p => {
                 const chip = document.createElement('div');
                 const isMe = (p.id === myPlayerId);
-                const isHostSlot = (p.id === 'player_1');
-                chip.className = `lobby-player-chip ${isMe ? 'my-chip' : (isHostSlot ? 'host-chip' : (p.isBot ? 'bot-chip' : ''))}`;
+                chip.className = `lobby-player-chip ${isMe ? 'my-chip' : (p.isBot ? 'bot-chip' : '')}`;
                 let roleTag = '';
                 if (isMe) {
                     roleTag = ' ⭐ (Bạn)';
-                } else if (isHostSlot) {
-                    roleTag = ' 👑 (Host)';
                 } else if (p.isBot) {
                     roleTag = ' 🤖 (Bot AI)';
                 } else {
@@ -1791,6 +1790,9 @@ function onGameStateReceived(msg) {
         const winnerPid = `player_${msg.winner + 1}`;
         const winnerP = gameState.players.find(p => p.id === winnerPid);
         if (winnerP) triggerVictory(winnerP);
+    }
+    if (gameState.phase === 'MINIGAME' && isHost) {
+        setTimeout(maybeFinalizeObserverMinigame, 0);
     }
 }
 
@@ -3205,6 +3207,8 @@ function initGame() {
 // 15. Tích Hợp Mini-game Manager & Cơ Chế Xếp Thứ Tự Lượt Đi Theo Điểm Số
 // ==========================================================================
 let isMinigameSessionActive = false;
+let minigameStartedRound = null;
+let minigameFinalizedRound = null;
 let lastPlayedMinigameId = null;
 let minigameSelectionPendingRound = null;
 
@@ -3387,6 +3391,7 @@ function onPlayerMovementFinished(player) {
 function handleRoundMinigamePhase() {
     if (gameState.phase !== 'MINIGAME' || gameState.isAnimatingMove || isMinigameSessionActive) return;
     if (socket && socket.readyState === WebSocket.OPEN) {
+        if (minigameStartedRound === gameState.currentRound) return;
         if (gameState.minigameId) {
             startRoundMinigame(gameState.minigameId);
         } else if (isHost && minigameSelectionPendingRound !== gameState.currentRound) {
@@ -3416,6 +3421,10 @@ function triggerRoundMinigamePhase() {
 
 async function startRoundMinigame(gameType) {
     if (isMinigameSessionActive || gameState.phase === 'GAME_OVER') return;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        if (minigameStartedRound === gameState.currentRound) return;
+        minigameStartedRound = gameState.currentRound;
+    }
     const chosenGame = ALL_MINIGAMES.find(game => game.id === gameType);
     if (!chosenGame) {
         console.error(`[Minigame] Server sent an unknown minigame: ${gameType}`);
@@ -3435,7 +3444,18 @@ async function startRoundMinigame(gameType) {
     // 2. Chạy hiệu ứng vòng quay Roulette
     showMinigameRoulette(chosenGame, async () => {
         try {
-            const humanPlayer = gameState.players.find(p => !p.isBot && ((p.id === myPlayerId) || !myPlayerId)) || gameState.players[0];
+            if (socket && socket.readyState === WebSocket.OPEN && isHost) {
+                isMinigameSessionActive = true;
+                dom.turnStatusLabel.textContent = '👁 ĐANG QUAN SÁT MINIGAME';
+                addGameLog(`👁 <strong>[HOST QUAN SÁT]</strong> Cả phòng đang chơi <strong>${chosenGame.name}</strong>.`);
+                maybeFinalizeObserverMinigame();
+                return;
+            }
+            const humanPlayer = gameState.players.find(p => !p.isBot && p.id === myPlayerId);
+            if (!humanPlayer) {
+                isMinigameSessionActive = false;
+                return;
+            }
             const launchOpts = {
                 player: humanPlayer,
                 allPlayers: gameState.players
@@ -3455,6 +3475,41 @@ async function startRoundMinigame(gameType) {
             showBanner('⚠️ Không tải được minigame. Vui lòng kiểm tra kết nối rồi tải lại trang.');
         }
     });
+}
+
+function maybeFinalizeObserverMinigame() {
+    if (!isHost || !socket || socket.readyState !== WebSocket.OPEN ||
+        gameState.phase !== 'MINIGAME' || !gameState.minigameId ||
+        minigameFinalizedRound === gameState.currentRound) return;
+
+    const activePlayers = gameState.players.filter(p => p.isBot || p.connected);
+    if (activePlayers.some(p => !p.isBot && !p.minigameSubmitted)) return;
+
+    const chosenGame = ALL_MINIGAMES.find(game => game.id === gameState.minigameId);
+    if (!chosenGame) return;
+
+    gameState.players.forEach(player => {
+        if (player.isBot || !player.connected) {
+            const score = generateBotScoreForMinigame(chosenGame.id, player);
+            player.minigameScore = score;
+            player.totalMinigameScore = (player.totalMinigameScore || 0) + score;
+            player.minigameSubmitted = true;
+        }
+    });
+
+    gameState.turnOrder.sort((a, b) => {
+        const scoreA = gameState.players.find(p => p.id === a)?.minigameScore || 0;
+        const scoreB = gameState.players.find(p => p.id === b)?.minigameScore || 0;
+        return scoreB - scoreA;
+    });
+    const first = gameState.players.find(p => p.id === gameState.turnOrder[0]);
+    const second = gameState.players.find(p => p.id === gameState.turnOrder[1]);
+    if (first) givePlayerItem(first, getRandomItem().id);
+    if (second) givePlayerItem(second, getRandomItem().id);
+
+    minigameFinalizedRound = gameState.currentRound;
+    isMinigameSessionActive = false;
+    showRoundLeaderboardModal(chosenGame.id);
 }
 
 // Hiệu ứng vòng quay Roulette chọn 1 trong 9 Minigame
@@ -3634,7 +3689,26 @@ function generateBotScoreForMinigame(gameType, bot) {
 
 // Xử lý khi Minigame của Vòng kết thúc & Sắp xếp lại thứ tự lượt tung xúc xắc tiếp theo
 function onRoundMinigameCompleted(chosenGame, result) {
-    const humanPlayer = gameState.players.find(p => !p.isBot && ((p.id === myPlayerId) || !myPlayerId)) || gameState.players[0];
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        if (isHost) return;
+        const humanPlayer = gameState.players.find(p => p.id === myPlayerId && !p.isBot);
+        if (!humanPlayer) {
+            isMinigameSessionActive = false;
+            showBanner('⚠️ Không tìm thấy người chơi để gửi kết quả minigame.');
+            return;
+        }
+        humanPlayer.minigameScore = typeof result.score === 'number'
+            ? result.score
+            : (result.win ? 200 : 80);
+        humanPlayer.minigameSubmitted = true;
+        sendWs({ t: 'minigame_score', score: humanPlayer.minigameScore });
+        addGameLog(`✅ <strong>${humanPlayer.name}</strong> đã nộp kết quả minigame. Đang chờ các người chơi khác...`);
+        showBanner('ĐÃ NỘP ĐIỂM MINIGAME · ĐANG CHỜ CẢ PHÒNG');
+        isMinigameSessionActive = false;
+        return;
+    }
+
+    const humanPlayer = gameState.players.find(p => !p.isBot && p.id === myPlayerId) || gameState.players[0];
     const humanScore = typeof result.score === 'number' ? result.score : (result.win ? 200 : 80);
     humanPlayer.minigameScore = humanScore;
     humanPlayer.totalMinigameScore = (humanPlayer.totalMinigameScore || 0) + humanScore;
@@ -3980,6 +4054,20 @@ const ITEM_DEFINITIONS = {
 
 const ALL_ITEM_IDS = ['rocket', 'bomber', 'double_dice', 'hook', 'teleport'];
 
+function showItemUsedNotification(msg) {
+    const player = gameState.players.find(p => p.id === `player_${msg.player + 1}`);
+    const item = ITEM_DEFINITIONS[msg.item];
+    if (!player || !item) return;
+
+    const target = Number.isInteger(msg.target) && msg.target >= 0
+        ? gameState.players.find(p => p.id === `player_${msg.target + 1}`)
+        : null;
+    const notice = `${item.icon} ${player.name} sử dụng ${item.name}${target ? ` lên ${target.name}` : ''}!`;
+    showBanner(notice);
+    addGameLog(`🎒 <strong>[VẬT PHẨM]</strong> ${notice}`);
+    AudioSFX.playBuffSFX();
+}
+
 function getRandomItem() {
     const id = ALL_ITEM_IDS[Math.floor(Math.random() * ALL_ITEM_IDS.length)];
     return ITEM_DEFINITIONS[id];
@@ -3990,8 +4078,9 @@ function isCurrentDevicePlayer(player) {
     if (myPlayerId) {
         return player.id === myPlayerId;
     }
-    // Nếu là Host chưa nhận isYou hoặc đang chơi offline:
-    if (isHost && player.id === 'player_1') {
+    // Keep the standalone/offline host playable; a network Host is an observer.
+    if (isHost && (!socket || socket.readyState !== WebSocket.OPEN) &&
+        !myPlayerId && player.id === 'player_1') {
         return true;
     }
     if (!socket || socket.readyState !== WebSocket.OPEN) {
@@ -4136,7 +4225,7 @@ function renderPlayerInventory() {
         dom.inventoryCountBadge.textContent = `${targetPlayer.items.length}/${MAX_ITEMS_PER_PLAYER}`;
     }
 
-    const isMine = (targetPlayer.id === myPlayerId) || (!myPlayerId && !targetPlayer.isBot);
+    const isMine = isCurrentDevicePlayer(targetPlayer);
     if (dom.inventoryTitle) {
         dom.inventoryTitle.textContent = isMine
             ? `🎒 TÚI VẬT PHẨM CỦA BẠN (${targetPlayer.avatarIcon || ''} ${targetPlayer.name})`
@@ -4145,7 +4234,7 @@ function renderPlayerInventory() {
 
     dom.inventorySlots.innerHTML = '';
     const isMyTurn = (targetPlayer.id === gameState.activePlayerId);
-    const canUse = isMyTurn && (gameState.phase === 'WAITING_ROLL');
+    const canUse = isMyTurn && gameState.phase === 'WAITING_ROLL' && isMine;
 
     for (let i = 0; i < MAX_ITEMS_PER_PLAYER; i++) {
         const itemId = targetPlayer.items[i];
@@ -4193,7 +4282,9 @@ function renderPlayerInventory() {
 }
 
 function handleItemActivation(player, itemId, itemIndex) {
-    if (gameState.phase !== 'WAITING_ROLL') return;
+    if (gameState.phase !== 'WAITING_ROLL' ||
+        player.id !== gameState.activePlayerId ||
+        !isCurrentDevicePlayer(player)) return;
     const def = ITEM_DEFINITIONS[itemId];
     if (!def) return;
 
@@ -4261,6 +4352,12 @@ function closeTargetSelectModal() {
 
 function executeItemEffect(player, itemId, targetId) {
     initAudio();
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        const targetIndex = targetId
+            ? Number.parseInt(String(targetId).replace('player_', ''), 10) - 1
+            : -1;
+        sendWs({ t: 'use_item', item: itemId, target: targetIndex });
+    }
 
     if (itemId === 'rocket') {
         const bonusSteps = 4 + Math.floor(Math.random() * 3); // 4, 5, 6 bước

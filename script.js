@@ -501,7 +501,12 @@ function playIntroOverviewSequence(activePlayer, onComplete) {
 
 function updateTurnButtons(activePlayer) {
     if (!activePlayer) return;
-    const isMyTurn = (activePlayer.id === myPlayerId);
+    const isOnlineHost = isHost && socket && socket.readyState === WebSocket.OPEN;
+    const isMyTurn = isOnlineHost
+        ? false
+        : (activePlayer.id === myPlayerId ||
+            (isHost && (!socket || socket.readyState !== WebSocket.OPEN) &&
+                !myPlayerId && activePlayer.id === 'player_1'));
     const isBotTurn = activePlayer.isBot;
 
     if (gameState.phase === 'WAITING_ROLL') {
@@ -510,6 +515,11 @@ function updateTurnButtons(activePlayer) {
             dom.btnRollDice.classList.add('pulse-active');
             dom.btnRollDice.querySelector('.roll-text').textContent = '🎲 ĐẾN LƯỢT BẠN! TUNG XÚC XẮC';
             dom.turnStatusLabel.textContent = '🌟 LƯỢT CỦA BẠN!';
+        } else if (isOnlineHost) {
+            dom.btnRollDice.classList.remove('pulse-active');
+            dom.btnRollDice.disabled = true;
+            dom.btnRollDice.querySelector('.roll-text').textContent = `👁 ĐANG QUAN SÁT ${activePlayer.name.toUpperCase()}`;
+            dom.turnStatusLabel.textContent = `QUAN SÁT LƯỢT CỦA: ${activePlayer.name.toUpperCase()}`;
         } else if (isHost) {
             dom.btnRollDice.classList.remove('pulse-active');
             dom.btnRollDice.disabled = !isBotTurn;
@@ -799,6 +809,7 @@ function handleWsMessage(msg) {
         sendWs({ t: 'hello', deviceId: getDeviceId(), bootId: currentBootId });
     } else if (msg.t === 'identity') {
         isHost = (msg.role === 'HOST' && msg.host === true);
+        if (isHost) myPlayerId = null;
         if (msg.hostIp) currentHostIp = msg.hostIp;
         updateRoleUI();
     } else if (msg.t === 'pong') {
@@ -807,6 +818,23 @@ function handleWsMessage(msg) {
         onGameStateReceived(msg);
     } else if (msg.t === 'dice_roll') {
         onDiceRollReceived(msg);
+    } else if (msg.t === 'item_used') {
+        const player = gameState.players.find(p => p.id === `player_${msg.player + 1}`);
+        const itemNames = {
+            rocket: 'Tên Lửa Tăng Tốc',
+            bomber: 'Máy Bay Thả Bom',
+            double_dice: 'Bùa Nhân Đôi',
+            hook: 'Móc Kéo Đối Thủ',
+            teleport: 'Máy Dịch Chuyển'
+        };
+        if (player && itemNames[msg.item]) {
+            const target = Number.isInteger(msg.target) && msg.target >= 0
+                ? gameState.players.find(p => p.id === `player_${msg.target + 1}`)
+                : null;
+            const notice = `🎒 ${player.name} sử dụng ${itemNames[msg.item]}${target ? ` lên ${target.name}` : ''}!`;
+            showBanner(notice);
+            addGameLog(`<strong>[VẬT PHẨM]</strong> ${notice}`);
+        }
     } else if (msg.t === 'minigame_result') {
         onMinigameResultReceived(msg);
     }
@@ -1000,6 +1028,7 @@ function renderSetupInputs(count) {
     dom.playerInputsContainer.innerHTML = '';
     for (let i = 0; i < count; i++) {
         const p = gameState.players[i] || DEFAULT_PRESETS[i];
+        const isConnectedHuman = p.connected && !p.isBot;
         const row = document.createElement('div');
         row.className = 'player-input-row';
         row.innerHTML = `
@@ -1009,9 +1038,11 @@ function renderSetupInputs(count) {
             </button>
             <div class="color-indicator" style="background-color: ${p.color}; box-shadow: 0 0 8px ${p.color};"></div>
             <input type="text" class="player-name-input" id="inputPlayerName_${i}" value="${p.name}" placeholder="Tên người chơi ${i + 1}" maxlength="20">
-            <button type="button" class="bot-toggle ${p.isBot ? 'active' : ''}" id="btnBotToggle_${i}" title="Chuyển đổi Người / Bot">
-                ${p.isBot ? '🤖 Bot AI' : (p.connected ? '📱 Đã vào' : '👤 Người')}
-            </button>
+            ${isConnectedHuman
+                ? `<span class="slot-badge-human">📱 ${p.id === myPlayerId ? 'Bạn' : 'Đã vào'}</span>`
+                : `<button type="button" class="bot-toggle ${p.isBot ? 'active' : ''}" id="btnBotToggle_${i}" title="Chuyển đổi Người / Bot">
+                    ${p.isBot ? '🤖 Bot AI' : '👤 Người'}
+                </button>`}
         `;
         dom.playerInputsContainer.appendChild(row);
 
@@ -1021,7 +1052,7 @@ function renderSetupInputs(count) {
         });
 
         const botBtn = row.querySelector(`#btnBotToggle_${i}`);
-        botBtn.addEventListener('click', () => {
+        if (botBtn) botBtn.addEventListener('click', () => {
             p.isBot = !p.isBot;
             botBtn.classList.toggle('active', p.isBot);
             botBtn.textContent = p.isBot ? '🤖 Bot AI' : '👤 Người';
@@ -1250,11 +1281,8 @@ function onGameStateReceived(msg) {
 
     if (Array.isArray(msg.order) && msg.order.length > 0) {
         gameState.turnOrder = msg.order
-            .map(idx => `player_${idx + 1}`)
-            .filter(pid => {
-                const idx = parseInt(pid.replace('player_', ''), 10);
-                return idx >= 1 && idx <= currentSelectedCount;
-            });
+            .filter(idx => Number.isInteger(idx) && idx >= 0 && idx < currentSelectedCount)
+            .map(idx => `player_${idx + 1}`);
     } else {
         gameState.turnOrder = [];
     }
@@ -1315,6 +1343,7 @@ function onGameStateReceived(msg) {
                 myPlayerId = pid;
             }
         });
+        if (isHost) myPlayerId = null;
     }
 
     // LOẠI BỎ tất cả người chơi có id lớn hơn currentSelectedCount
@@ -2719,7 +2748,9 @@ function checkAndTriggerMinigameForActivePlayer(targetPlayer = null) {
     }
 
     // 2. Nếu là Người chơi thật: Kiểm tra xem có đúng thiết bị này không
-    const isMyTurn = (player.id === myPlayerId) || (isHost && !myPlayerId);
+    const isMyTurn = (player.id === myPlayerId) ||
+        (isHost && (!socket || socket.readyState !== WebSocket.OPEN) &&
+            !myPlayerId && player.id === 'player_1');
     if (!isMyTurn) {
         addGameLog(`⏳ Đang chờ <strong>${player.name}</strong> thi đấu ${gameName}...`);
         showBanner(`ĐANG CHỜ ${player.name.toUpperCase()} THI ĐẤU ${gameName}...`);

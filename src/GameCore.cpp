@@ -47,11 +47,12 @@ void GameCore::resetGame(bool keepPlayers) {
       p.color = kPresets[i].color;
       p.avatarIcon = kPresets[i].avatar;
       p.position = 0;
-      p.isBot = (i > 0);
+      p.isBot = true;
       p.connected = false;
       p.totalRolls = 0;
       p.minigameScore = 0;
       p.totalMinigameScore = 0;
+      p.minigameSubmitted = false;
       p.skipNextTurn = false;
       p.hasDoubleDice = false;
       players_.push_back(p);
@@ -62,6 +63,7 @@ void GameCore::resetGame(bool keepPlayers) {
       p.totalRolls = 0;
       p.minigameScore = 0;
       p.totalMinigameScore = 0;
+      p.minigameSubmitted = false;
       p.skipNextTurn = false;
       p.hasDoubleDice = false;
     }
@@ -144,6 +146,7 @@ int GameCore::findPlayerByDeviceId(const std::string& deviceId) const {
 bool GameCore::registerPlayer(const std::string& deviceId, std::uint32_t clientId, const std::string& name,
                               const std::string& avatar, const std::string& color, bool isHost) {
   if (deviceId.empty() || clientId == 0) return false;
+  if (isHost) return false;
 
   int existing = findPlayerByDeviceId(deviceId);
   if (existing >= 0) {
@@ -160,41 +163,24 @@ bool GameCore::registerPlayer(const std::string& deviceId, std::uint32_t clientI
     return true;
   }
 
-  // Nếu là máy Host: luôn ưu tiên gán vào slot 0 (Player 1)
-  if (isHost) {
-    auto& p = players_[0];
-    p.deviceId = deviceId;
-    p.clientId = clientId;
-    p.connected = true;
-    p.isBot = false;
-    if (!name.empty()) p.name = name;
-    if (!avatar.empty()) p.avatarIcon = avatar;
-    if (!color.empty()) p.color = color;
-    std::uint8_t connectedHumans = countConnectedHumans();
-    if (playerCount_ < connectedHumans) {
-      setPlayerCount(connectedHumans);
-    }
-    return true;
-  }
+  for (int pass = 0; pass < 2; ++pass) {
+    for (std::size_t i = 0; i < players_.size() && i < kMaxPlayers; ++i) {
+      auto& p = players_[i];
+      if (p.deviceId.empty() && (pass == 1 || !p.isBot)) {
+        p.deviceId = deviceId;
+        p.clientId = clientId;
+        p.connected = true;
+        p.isBot = false;
+        if (!name.empty()) p.name = name;
+        if (!avatar.empty()) p.avatarIcon = avatar;
+        if (!color.empty()) p.color = color;
 
-  // Nếu là máy khách: tìm slot trống tiếp theo từ slot 1 trở đi (tránh slot 0 của Host)
-  for (std::size_t i = 1; i < players_.size() && i < kMaxPlayers; ++i) {
-    auto& p = players_[i];
-    if (p.deviceId.empty() || p.isBot || !p.connected) {
-      p.deviceId = deviceId;
-      p.clientId = clientId;
-      p.connected = true;
-      p.isBot = false;
-      if (!name.empty()) p.name = name;
-      if (!avatar.empty()) p.avatarIcon = avatar;
-      if (!color.empty()) p.color = color;
-
-      // Khi thêm người chơi mới vào: mở rộng nếu số người kết nối thật vượt quá playerCount hiện tại
-      std::uint8_t connectedHumans = countConnectedHumans();
-      if (playerCount_ < connectedHumans) {
-        setPlayerCount(connectedHumans);
+        std::uint8_t connectedHumans = countConnectedHumans();
+        if (playerCount_ < connectedHumans) {
+          setPlayerCount(connectedHumans);
+        }
+        return true;
       }
-      return true;
     }
   }
   return false;
@@ -234,7 +220,7 @@ void GameCore::removePlayerByDeviceId(const std::string& deviceId) {
     players_[idx].deviceId.clear();
     players_[idx].clientId = 0;
     players_[idx].connected = false;
-    players_[idx].isBot = (idx > 0);
+    players_[idx].isBot = true;
   }
 }
 
@@ -248,6 +234,10 @@ void GameCore::shuffleTurns() {
 
 void GameCore::startNewRound(std::uint32_t now) {
   // KHÔNG tráo ngẫu nhiên ở các vòng sau - Giữ nguyên thứ tự lượt đi cố định
+  for (auto& player : players_) {
+    player.minigameScore = 0;
+    player.minigameSubmitted = false;
+  }
   currentTurnIndex_ = 0;
   phase_ = GamePhase::WaitingRoll;
   turnStartTime_ = now;
@@ -259,6 +249,7 @@ bool GameCore::startGame(std::uint8_t count, const std::vector<bool>& botFlags,
                          const std::vector<std::string>& avatars, const std::vector<std::string>& colors) {
   if (count < 2) count = 2;
   if (count > kMaxPlayers) count = kMaxPlayers;
+  count = std::max(count, countConnectedHumans());
   playerCount_ = count;
 
   turnOrder_.clear();
@@ -280,7 +271,7 @@ bool GameCore::startGame(std::uint8_t count, const std::vector<bool>& botFlags,
 
   for (std::uint8_t i = 0; i < playerCount_; ++i) {
     // Đảm bảo slot có người thật kết nối KHÔNG BAO GIỜ bị biến thành bot!
-    if (i == 0 || (!players_[i].deviceId.empty() && players_[i].connected)) {
+    if (!players_[i].deviceId.empty() && players_[i].connected) {
       players_[i].isBot = false;
     } else if (i < botFlags.size()) {
       players_[i].isBot = botFlags[i];
@@ -374,6 +365,17 @@ bool GameCore::activateDoubleDice(std::uint8_t playerIdx) {
   return true;
 }
 
+bool GameCore::submitMinigameScore(std::uint8_t playerIdx, std::uint16_t score) {
+  if (phase_ != GamePhase::Minigame || playerIdx >= playerCount_ ||
+      playerIdx >= players_.size() || players_[playerIdx].isBot ||
+      !players_[playerIdx].connected || players_[playerIdx].minigameSubmitted) {
+    return false;
+  }
+  setPlayerMinigameScore(playerIdx, score);
+  players_[playerIdx].minigameSubmitted = true;
+  return true;
+}
+
 void GameCore::nextTurn(std::uint32_t now) {
   if (phase_ == GamePhase::GameOver) return;
 
@@ -436,8 +438,12 @@ bool GameCore::update(std::uint32_t now) {
 
 void GameCore::setPlayerMinigameScore(std::uint8_t playerIdx, std::uint16_t score) {
   if (playerIdx >= players_.size()) return;
-  players_[playerIdx].minigameScore = score;
-  players_[playerIdx].totalMinigameScore += score;
+  auto& player = players_[playerIdx];
+  if (!player.minigameSubmitted) {
+    player.totalMinigameScore += score;
+  }
+  player.minigameScore = score;
+  player.minigameSubmitted = true;
 }
 
 bool GameCore::advanceRoundWithNewOrder(const std::vector<std::uint8_t>& newOrder, std::uint32_t now) {

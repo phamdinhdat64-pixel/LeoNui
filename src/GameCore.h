@@ -25,6 +25,7 @@ struct Player {
   std::uint16_t totalRolls = 0;         // Tổng số lần tung xúc xắc
   std::uint16_t minigameScore = 0;      // Điểm minigame vòng hiện tại (dùng xếp thứ tự lượt)
   std::uint32_t totalMinigameScore = 0; // Tổng điểm minigame tích lũy
+  bool minigameSubmitted = false;      // Đã nộp điểm minigame vòng hiện tại
   bool skipNextTurn = false;            // Bị choáng do trúng bom (mất 1 lượt)
   bool hasDoubleDice = false;           // Bùa nhân đôi bước đi
 };
@@ -86,6 +87,7 @@ class GameCore {
 
   // Minigame tính điểm & xếp thứ tự lượt
   bool submitMinigameScore(std::uint8_t playerIdx, std::uint16_t score, std::uint32_t now);
+  bool submitMinigameScore(std::uint8_t playerIdx, std::uint16_t score);
   void setPlayerMinigameScore(std::uint8_t playerIdx, std::uint16_t score);
   bool advanceRoundWithNewOrder(const std::vector<std::uint8_t>& newOrder, std::uint32_t now);
   void sortTurnOrderByScores();
